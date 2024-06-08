@@ -21,7 +21,7 @@ install_yay() {
 }
 
 yay_install_packages() {
-    local packages = "" # Set a blank local variable that can be added to later.
+    local packages="" # Set a blank local variable that can be added to later.
     
     # Basic System-Wide Tools
     packages+="flatpak xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez ttf-win10 p7zip-gui nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode decklink hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader"
