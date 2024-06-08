@@ -1,0 +1,80 @@
+#!/bin/bash
+
+USER='riley'
+# change to your user-account
+
+install_yay() {
+    cd /tmp/ # Change Directory to Dedicated Temporary Directory
+    git clone https://aur.archlinux.org/yay.git # Use git to clone yay from the AUR
+    chown -R riley:riley /tmp/yay
+    cd /tmp/yay # Change Directory to the new yay folder
+    su -c 'makepkg' $USER
+## su - swich user
+## -c - issue command(s)
+## 'makepkg' - make the AUR package(s)
+## $USER - Global Variable: User Account to be used
+    
+    pacman -U --noconfirm yay-*.tar.zst # use pacman to install yay (and yay-debug) without prompting for confirmations
+    cd / # Change directory to root
+    rm -rf /tmp/yay # Delete the yay/ directory from /tmp
+    yay_install_packages
+}
+
+yay_install_packages() {
+    local packages = "" # Set a blank local variable that can be added to later.
+    
+    # Basic System-Wide Tools
+    packages+="flatpak xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez ttf-win10 p7zip-gui nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode decklink hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader"
+    
+    # Audio Software(s)
+    packages+="pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse wireplumber"
+
+    # Desktop / WM and Required Tools
+    packages+="xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-desktop gdm gnome-terminal-transparency gnome-system-monitor gnome-tweaks gnome-control-center gnome-keyring gnome-bluetooth gnome-browser-connector nautilus"
+
+    # Themes
+    packages+="libadwaita adwaita-dark adwaita-cursors breeze breeze-icons"
+
+    # Desktop Utilities
+    packages+="gnome-calculator gnome-music gnome-disk-utility piper eog thunderbird vlc pamac-flatpak"
+
+    # Games and Launchers
+    packages+="lutris heroic-games-launcher minecraft-launcher"
+
+    # Custom Packages
+    packages+="vscodium keepassxc obsidian reaper goxlr-utility thorium-browser-bin firefox spotify obs-studio-git gpu-screen-recorder-git media-downloader qbittorrent streamdeck-ui fontforge"
+
+    yay -S --noconfirm $packages # Automatically Install listed packages without confirmation
+    install_steam
+}
+
+install_steam() {
+    pacman -S --noconfirm steam
+    install_flatpaks
+}
+
+install_flatpaks() {
+    su -c 'flatpak install com.discordapp.Discord -y' $USER
+}
+
+setup_systemd() {
+    systemctl enable gdm.service # Enable the Gnome Display Manager
+    systemctl enable DesktopVideoHelper.service
+    basic_configs
+}
+
+basic_configs() {
+    cp -s /usr/bin/nano /usr/bin/vi #similar to ln, symlink nano to vi as default editor
+    cleanup
+}
+
+cleanup() {
+    sudo pacman -Syu && sudo paccache -rk1 && sudo paccache -ruk0
+    # Applies available updates and clears cached versions
+    exit
+}
+
+start() {
+    install_yay
+}
+start
