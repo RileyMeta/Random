@@ -20,6 +20,13 @@ install_yay() {
     yay_install_packages
 }
 
+# install_pacman_apps() {
+#     local packages=""
+#
+#   
+#     pacman -S --noconfirm $packages
+# }
+
 yay_install_packages() {
     local packages="" # Set a blank local variable that can be added to later.
     
@@ -43,8 +50,9 @@ yay_install_packages() {
 
     # Custom Packages
     packages+="vscodium keepassxc obsidian reaper goxlr-utility thorium-browser-bin firefox spotify obs-studio-git gpu-screen-recorder-git media-downloader qbittorrent streamdeck-ui fontforge"
-
-    yay -S --noconfirm $packages # Automatically Install listed packages without confirmation
+    
+    bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S --noconfirm $packages")
+    # yay -S --noconfirm $packages # Automatically Install listed packages without confirmation
     install_steam
 }
 
