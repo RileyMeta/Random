@@ -95,6 +95,7 @@ else
     install_system_packages && sleep 1 &&
     install_steam && sleep 1 &&
     install_yay_packages && sleep 1 &&
+    install_annoying_yay_packages && sleep 1 &&
     install_flatpak_packages && sleep 1 &&
     setup_systemd && sleep 1 &&
     basic_configs && sleep 1 &&
