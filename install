@@ -27,7 +27,7 @@ install_system_packages() {
     local packages="" # Set a blank local variable that can be added to later.
 
     # Basic System-Wide Tools
-    packages+=" xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez ttf-win10 p7zip-gui nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode decklink hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader libadwaita adwaita-cursors breeze breeze-icons "
+    packages+=" xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader libadwaita adwaita-cursors breeze breeze-icons "
 
     # Desktop Utilities
     packages+=" gnome-calculator gnome-music gnome-disk-utility piper eog thunderbird vlc qbittorrent lutris "
@@ -49,7 +49,7 @@ install_yay_packages() {
     local packages=""
 
     # Custom Desktop Utilities
-    packages+=" gnome-terminal-transparency gnome-browser-connector "
+    packages+=" gnome-terminal-transparency gnome-browser-connector decklink ttf-win10 p7zip-gui"
 
     # Themes
     packages+=" adwaita-dark "
