@@ -57,13 +57,12 @@ install_flatpak_packages() {
 
 setup_systemd() {
     clear && echo "Enabling Custom SystemD Services" &&
-    su -c "systemctl enable gdm" root # Enable the Gnome Display Manager
-    su -c "systemctl enable DesktopVideoHelper" root 
+    su -c "systemctl enable gdm; systemctl enable DesktopVideoHelper" root # Enable the Gnome Display Manager
 }
 
 basic_configs() {
     clear && echo "Setting Basic Configurations" && sleep 1 &&
-    su -c "cp -sv /usr/bin/nano /usr/bin/vi && sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 12/g' /etc/pacman.conf && echo 'Pacman Parallel Downloads set to "12"' && sed -i 's/#Color/Color/g' /etc/pacman.conf && echo 'Enabled colors in Pacman output'" root
+    su -c "cp -sv /usr/bin/nano /usr/bin/vi && sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 12/g' /etc/pacman.conf && echo 'Pacman Parallel Downloads set to "12"' && sed -i 's/#Color/Color/g' /etc/pacman.conf && echo 'Enabled colors in Pacman output'
     cat >> /etc/fstab<< EOF
 
 # Game Drive
@@ -74,7 +73,7 @@ basic_configs() {
 
 # Pyroclastic
 //192.168.1.126/share	 /mnt/Pyroclastic	cifs 	credentials=/home/riley/.smbcreds,noperm,file_mode=0777,dir_mode=0777,iocharset=utf8,noauto,nofail 0 0
-EOF
+EOF" root
 }
 
 cleanup() {
@@ -89,7 +88,7 @@ start() {
     basic_configs && sleep 1 &&
     install_steam && install_flatpak && sleep 1 &&
     install_yay && sleep 1 &&
-    install_flatpak_packages && sleep 1 &&
+    # install_flatpak_packages && sleep 1 &&
     setup_systemd && sleep 1 &&
     install_yay_packages && sleep 1 &&
     cleanup && exit
