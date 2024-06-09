@@ -83,7 +83,7 @@ cleanup() {
 }
 
 if [ "$(id -u)" -eq 0 ]; then
-    su -c './install' @USER
+    su -c './install' $USER
 else
     install_yay && sleep 1 &&
     install_flatpak && sleep 1 &&
