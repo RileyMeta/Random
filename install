@@ -17,63 +17,63 @@ install_yay() {
     pacman -U --noconfirm yay-*.tar.zst # use pacman to install yay (and yay-debug) without prompting for confirmations
     cd / # Change directory to root
     rm -rf /tmp/yay # Delete the yay/ directory from /tmp
-    yay_install_packages
 }
 
-# install_pacman_apps() {
-#     local packages=""
-#
-#   
-#     pacman -S --noconfirm $packages
-# }
+install_flatpak() {
+    pacman -S --noconfirm flatpak 
+}
 
-yay_install_packages() {
+install_system_packages() {
     local packages="" # Set a blank local variable that can be added to later.
-    
+
     # Basic System-Wide Tools
-    packages+="flatpak xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez ttf-win10 p7zip-gui nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode decklink hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader"
-    
-    # Audio Software(s)
-    packages+="pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse wireplumber"
-
-    # Desktop / WM and Required Tools
-    packages+="xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-desktop gdm gnome-terminal-transparency gnome-system-monitor gnome-tweaks gnome-control-center gnome-keyring gnome-bluetooth gnome-browser-connector nautilus"
-
-    # Themes
-    packages+="libadwaita adwaita-dark adwaita-cursors breeze breeze-icons"
+    packages+=" xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez ttf-win10 p7zip-gui nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode decklink hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader libadwaita adwaita-cursors breeze breeze-icons "
 
     # Desktop Utilities
-    packages+="gnome-calculator gnome-music gnome-disk-utility piper eog thunderbird vlc pamac-flatpak"
+    packages+=" gnome-calculator gnome-music gnome-disk-utility piper eog thunderbird vlc qbittorrent lutris "
 
-    # Games and Launchers
-    packages+="lutris heroic-games-launcher minecraft-launcher"
+    # Audio Software(s)
+    packages+=" pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse wireplumber reaper firefox "
 
-    # Custom Packages
-    packages+="vscodium keepassxc obsidian reaper goxlr-utility thorium-browser-bin firefox spotify obs-studio-git gpu-screen-recorder-git media-downloader qbittorrent streamdeck-ui fontforge"
-    
-    bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S --noconfirm $packages")
-    # yay -S --noconfirm $packages # Automatically Install listed packages without confirmation
-    install_steam
+    # Desktop / WM and Required Tools
+    packages+=" xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-desktop gdm gnome-system-monitor gnome-tweaks gnome-control-center gnome-keyring gnome-bluetooth nautilus "
+
+    pacman -S --noconfirm $packages
 }
 
 install_steam() {
     pacman -S --noconfirm steam
-    install_flatpaks
 }
 
-install_flatpaks() {
-    su -c 'flatpak install com.discordapp.Discord -y' $USER
+install_yay_packages() {
+    local packages=""
+
+    # Custom Desktop Utilities
+    packages+=" gnome-terminal-transparency gnome-browser-connector "
+
+    # Themes
+    packages+=" adwaita-dark "
+
+    # Games and Launchers
+    packages+=" heroic-games-launcher minecraft-launcher pamac-flatpak "
+
+    # Custom Packages
+    packages+=" vscodium keepassxc obsidian goxlr-utility thorium-browser-bin spotify obs-studio-git gpu-screen-recorder-git media-downloader streamdeck-ui fontforge "
+    
+    yay -S --noconfirm $packages # Automatically Install listed packages without confirmation
+}
+
+install_flatpak_packages() {
+    flatpak install com.discordapp.Discord -y
 }
 
 setup_systemd() {
     systemctl enable gdm.service # Enable the Gnome Display Manager
     systemctl enable DesktopVideoHelper.service
-    basic_configs
 }
 
 basic_configs() {
     cp -s /usr/bin/nano /usr/bin/vi #similar to ln, symlink nano to vi as default editor
-    cleanup
 }
 
 cleanup() {
@@ -85,5 +85,13 @@ cleanup() {
 if [ "$(id -u)" -eq 0 ]; then
     su -c './install' @USER
 else
-    install_yay
+    install_yay && sleep 1 &&
+    install_flatpak && sleep 1 &&
+    install_system_packages && sleep 1 &&
+    install_steam && sleep 1 &&
+    install_yay_packages && sleep 1 &&
+    install_flatpak_packages && sleep 1 &&
+    setup_systemd && sleep 1 &&
+    basic_configs && sleep 1 &&
+    cleanup
 fi
