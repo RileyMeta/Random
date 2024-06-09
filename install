@@ -34,25 +34,25 @@ yay_install_packages() {
     packages+="flatpak xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez ttf-win10 p7zip-gui nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode decklink hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader"
     
     # Audio Software(s)
-    packages+=" pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse wireplumber"
+    packages+="pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse wireplumber"
 
     # Desktop / WM and Required Tools
-    packages+=" xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-desktop gdm gnome-terminal-transparency gnome-system-monitor gnome-tweaks gnome-control-center gnome-keyring gnome-bluetooth gnome-browser-connector nautilus"
+    packages+="xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-desktop gdm gnome-terminal-transparency gnome-system-monitor gnome-tweaks gnome-control-center gnome-keyring gnome-bluetooth gnome-browser-connector nautilus"
 
     # Themes
-    packages+=" libadwaita adwaita-dark adwaita-cursors breeze breeze-icons"
+    packages+="libadwaita adwaita-dark adwaita-cursors breeze breeze-icons"
 
     # Desktop Utilities
-    packages+=" gnome-calculator gnome-music gnome-disk-utility piper eog thunderbird vlc pamac-flatpak"
+    packages+="gnome-calculator gnome-music gnome-disk-utility piper eog thunderbird vlc pamac-flatpak"
 
     # Games and Launchers
-    packages+=" lutris heroic-games-launcher minecraft-launcher"
+    packages+="lutris heroic-games-launcher minecraft-launcher"
 
     # Custom Packages
-    packages+=" vscodium keepassxc obsidian reaper goxlr-utility thorium-browser-bin firefox spotify obs-studio-git gpu-screen-recorder-git media-downloader qbittorrent streamdeck-ui fontforge"
+    packages+="vscodium keepassxc obsidian reaper goxlr-utility thorium-browser-bin firefox spotify obs-studio-git gpu-screen-recorder-git media-downloader qbittorrent streamdeck-ui fontforge"
     
-    # bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S --noconfirm $packages")
-    yay -S --noconfirm $packages # Automatically Install listed packages without confirmation
+    bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S --noconfirm $packages")
+    # yay -S --noconfirm $packages # Automatically Install listed packages without confirmation
     install_steam
 }
 
@@ -82,7 +82,8 @@ cleanup() {
     exit
 }
 
-start() {
+if [ "$(id -u)" -eq 0 ]; then
+    su -c './install' @USER
+else
     install_yay
-}
-start
+fi
