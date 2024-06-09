@@ -9,11 +9,6 @@ install_yay() {
     chown -R riley:riley /tmp/yay
     cd /tmp/yay # Change Directory to the new yay folder
     makepkg
-## su - swich user
-## -c - issue command(s)
-## 'makepkg' - make the AUR package(s)
-## $USER - Global Variable: User Account to be used
-    
     su -c "pacman -U --noconfirm yay-*.tar.zst" root # use pacman to install yay (and yay-debug) without prompting for confirmations
     cd / # Change directory to root
     rm -rf /tmp/yay # Delete the yay/ directory from /tmp
