@@ -89,8 +89,8 @@ start() {
     install_steam && install_flatpak && sleep 1 &&
     install_yay && sleep 1 &&
     # install_flatpak_packages && sleep 1 &&
-    setup_systemd && sleep 1 &&
     install_yay_packages && sleep 1 &&
+    setup_systemd && sleep 1 &&
     cleanup && exit
 }
 
