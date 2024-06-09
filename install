@@ -9,6 +9,11 @@ install_yay() {
     chown -R riley:riley /tmp/yay
     cd /tmp/yay # Change Directory to the new yay folder
     makepkg
+## su - swich user
+## -c - issue command(s)
+## 'makepkg' - make the AUR package(s)
+## $USER - Global Variable: User Account to be used
+    
     su -c "pacman -U --noconfirm yay-*.tar.zst" root # use pacman to install yay (and yay-debug) without prompting for confirmations
     cd / # Change directory to root
     rm -rf /tmp/yay # Delete the yay/ directory from /tmp
@@ -41,22 +46,8 @@ install_steam() {
 }
 
 install_yay_packages() {
-    local packages=""
-
-    # Custom Desktop Utilities
-    packages+=" gnome-terminal-transparency gnome-browser-connector decklink ttf-win10 p7zip-gui spotify media-downloader "
-
-    # Themes
-    packages+=" adwaita-dark "
-
-    # Games and Launchers
-    packages+=" heroic-games-launcher minecraft-launcher pamac-flatpak "
-
-    # Custom Packages
-    packages+=" vscodium keepassxc obsidian goxlr-utility thorium-browser-bin obs-studio-git gpu-screen-recorder-git streamdeck-ui fontforge "
-    
-    # su -c "yay -S $packages" $USER
-    bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S $packages && echo "Please 'exit' this Bash shell"") # Open a new bash session on top of  Automatically Install listed packages without confirmation
+    echo "heroic-games-launcher minecraft-launcher pamac-flatpak adwaita-dark gnome-terminal-transparency gnome-browser-connector decklink ttf-win10 p7zip-gui spotify media-downloader vscodium keepassxc obsidian goxlr-utility thorium-browser-bin obs-studio-git gpu-screen-recorder-git streamdeck-ui fontforge" > package_list &&
+    bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S $(cat package_list) && echo "Please 'exit' this Bash shell"") # Open a new bash session on top of  Automatically Install listed packages without confirmation
 }
 
 install_flatpak_packages() {
