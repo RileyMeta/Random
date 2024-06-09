@@ -8,7 +8,12 @@ install_yay() {
     git clone https://aur.archlinux.org/yay.git # Use git to clone yay from the AUR
     chown -R riley:riley /tmp/yay
     cd /tmp/yay # Change Directory to the new yay folder
-    makepkg  
+    makepkg
+## su - swich user
+## -c - issue command(s)
+## 'makepkg' - make the AUR package(s)
+## $USER - Global Variable: User Account to be used
+    
     su -c "pacman -U --noconfirm yay-*.tar.zst" root # use pacman to install yay (and yay-debug) without prompting for confirmations
     cd / # Change directory to root
     rm -rf /tmp/yay # Delete the yay/ directory from /tmp
@@ -22,7 +27,7 @@ install_system_packages() {
     local packages="" # Set a blank local variable that can be added to later.
 
     # Basic System-Wide Tools
-    packages+=" xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez ttf-win10 p7zip-gui nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode decklink hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader libadwaita adwaita-cursors breeze breeze-icons "
+    packages+=" xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader libadwaita adwaita-cursors breeze breeze-icons "
 
     # Desktop Utilities
     packages+=" gnome-calculator gnome-music gnome-disk-utility piper eog thunderbird vlc qbittorrent lutris "
@@ -44,7 +49,7 @@ install_yay_packages() {
     local packages=""
 
     # Custom Desktop Utilities
-    packages+=" gnome-terminal-transparency gnome-browser-connector "
+    packages+=" gnome-terminal-transparency gnome-browser-connector decklink ttf-win10 p7zip-gui spotify media-downloader "
 
     # Themes
     packages+=" adwaita-dark "
@@ -55,17 +60,8 @@ install_yay_packages() {
     # Custom Packages
     packages+=" vscodium keepassxc obsidian goxlr-utility thorium-browser-bin obs-studio-git gpu-screen-recorder-git streamdeck-ui fontforge "
     
-    su -c "yay -S --noconfirm $packages" $USER
-    #bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S --noconfirm $packages") # Automatically Install listed packages without confirmation
-}
-
-install_annoying_yay_packages() {
-    # Mostly installs that require manual intervention and or import of keys
-    packages=""
-
-    packages+=" spotify media-downloader "
-
-    yay -S $packages
+    # su -c "yay -S $packages" $USER
+    bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S $packages && echo "Please 'exit' this Bash shell"") # Open a new bash session on top of  Automatically Install listed packages without confirmation
 }
 
 install_flatpak_packages() {
@@ -95,7 +91,6 @@ else
     install_system_packages && sleep 1 &&
     install_steam && sleep 1 &&
     install_yay_packages && sleep 1 &&
-    install_annoying_yay_packages && sleep 1 &&
     install_flatpak_packages && sleep 1 &&
     setup_systemd && sleep 1 &&
     basic_configs && sleep 1 &&
