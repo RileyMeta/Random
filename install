@@ -77,13 +77,13 @@ basic_configs() {
 }
 
 cleanup() {
-    su -c "su -c "pacman -Syu" root && su -c "paccache -rk1" root && su -c "paccache -ruk0" root
+    su -c "pacman -Syu" root && su -c "paccache -rk1" root && su -c "paccache -ruk0" root
     # Applies available updates and clears cached versions
     exit
 }
 
 if [ "$(id -u)" -eq 0 ]; then
-    su -c './install' @USER
+    su -c './install' $USER
 else
     install_yay && sleep 1 &&
     install_flatpak && sleep 1 &&
