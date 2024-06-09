@@ -4,22 +4,19 @@ USER='riley'
 # change to your user-account
 
 install_yay() {
-    cd /tmp/ # Change Directory to Dedicated Temporary Directory
-    git clone https://aur.archlinux.org/yay.git # Use git to clone yay from the AUR
+    cd /tmp/
+    git clone https://aur.archlinux.org/yay.git
     chown -R riley:riley /tmp/yay
-    cd /tmp/yay # Change Directory to the new yay folder
+    cd /tmp/yay
     makepkg
-## su - swich user
-## -c - issue command(s)
-## 'makepkg' - make the AUR package(s)
-## $USER - Global Variable: User Account to be used
-    
-    su -c "pacman -U --noconfirm yay-*.tar.zst" root # use pacman to install yay (and yay-debug) without prompting for confirmations
-    cd / # Change directory to root
-    rm -rf /tmp/yay # Delete the yay/ directory from /tmp
+    echo "Confirm installation of Yay"
+    su -c "pacman -U --noconfirm yay-*.tar.zst" root
+    cd /
+    rm -rf /tmp/yay
 }
 
 install_flatpak() {
+    clear && echo "Installing Flatpak" &&
     su -c "pacman -S --noconfirm flatpak" root
 }
 
@@ -38,32 +35,39 @@ install_system_packages() {
     # Desktop / WM and Required Tools
     packages+=" xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-desktop gdm gnome-system-monitor gnome-tweaks gnome-control-center gnome-keyring gnome-bluetooth nautilus xorg "
 
+    clear && echo "Confirm Installation of System Packages" &&
     su -c "pacman -S --noconfirm $packages" root
 }
 
 install_steam() {
+    clear && echo "Installing Steam" &&
     su -c "pacman -S --noconfirm steam" root
 }
 
 install_yay_packages() {
-    echo "heroic-games-launcher minecraft-launcher pamac-flatpak adwaita-dark gnome-terminal-transparency gnome-browser-connector decklink ttf-win10 p7zip-gui spotify media-downloader vscodium keepassxc obsidian goxlr-utility thorium-browser-bin obs-studio-git gpu-screen-recorder-git streamdeck-ui fontforge" > package_list &&
-    bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S $(cat package_list) && echo "Please 'exit' this Bash shell"") # Open a new bash session on top of  Automatically Install listed packages without confirmation
+    clear && echo "Please run 'yay -S \$(cat /tmp/package_list)' to install the rest of your apps." &&
+    echo "heroic-games-launcher minecraft-launcher pamac-flatpak adwaita-dark gnome-terminal-transparency gnome-browser-connector decklink ttf-win10 p7zip-gui spotify media-downloader vscodium keepassxc obsidian goxlr-utility thorium-browser-bin obs-studio-git gpu-screen-recorder-git streamdeck-ui fontforge" > /tmp/package_list &&
+    su -c "bash" $USER
 }
 
 install_flatpak_packages() {
+    clear && echo "Installing Flatpaks" &&
     flatpak install com.discordapp.Discord -y
 }
 
 setup_systemd() {
+    clear && echo "Enabling Custom SystemD Services" &&
     su -c "systemctl enable gdm" root # Enable the Gnome Display Manager
     su -c "systemctl enable DesktopVideoHelper" root 
 }
 
 basic_configs() {
-    su -c "cp -s /usr/bin/nano /usr/bin/vi" root #similar to ln, symlink nano to vi as default editor
+    clear && echo "Setting Basic Configurations" &&
+    su -c "cp -sv /usr/bin/nano /usr/bin/vi && sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 12/g' /etc/pacman.conf && echo 'Pacman Parallel Downloads set to "12"' && sed -i 's/#Color/Color/g' /etc/pacman.conf && echo 'Enabled colors in Pacman output'" root
 }
 
 cleanup() {
+    clear && echo "Running System Update and Clearing Cached Data" &&
     su -c "pacman -Syu && paccache -rk1 && paccache -ruk0" root
     # Applies available updates and clears cached versions
     exit
@@ -73,12 +77,12 @@ if [ "$(id -u)" -eq 0 ]; then
     su -c './install' $USER
 else
     install_yay && sleep 1 &&
-    install_flatpak && sleep 1 &&
     install_system_packages && sleep 1 &&
+    install_flatpak && sleep 1 &&
     install_steam && sleep 1 &&
     install_yay_packages && sleep 1 &&
     install_flatpak_packages && sleep 1 &&
     setup_systemd && sleep 1 &&
     basic_configs && sleep 1 &&
-    cleanup
+    cleanup && sleep 1 && exit
 fi
