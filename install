@@ -8,12 +8,7 @@ install_yay() {
     git clone https://aur.archlinux.org/yay.git # Use git to clone yay from the AUR
     chown -R riley:riley /tmp/yay
     cd /tmp/yay # Change Directory to the new yay folder
-    makepkg
-## su - swich user
-## -c - issue command(s)
-## 'makepkg' - make the AUR package(s)
-## $USER - Global Variable: User Account to be used
-    
+    makepkg  
     su -c "pacman -U --noconfirm yay-*.tar.zst" root # use pacman to install yay (and yay-debug) without prompting for confirmations
     cd / # Change directory to root
     rm -rf /tmp/yay # Delete the yay/ directory from /tmp
@@ -27,7 +22,7 @@ install_system_packages() {
     local packages="" # Set a blank local variable that can be added to later.
 
     # Basic System-Wide Tools
-    packages+=" xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader libadwaita adwaita-cursors breeze breeze-icons "
+    packages+=" xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez ttf-win10 p7zip-gui nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode decklink hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader libadwaita adwaita-cursors breeze breeze-icons "
 
     # Desktop Utilities
     packages+=" gnome-calculator gnome-music gnome-disk-utility piper eog thunderbird vlc qbittorrent lutris "
@@ -49,7 +44,7 @@ install_yay_packages() {
     local packages=""
 
     # Custom Desktop Utilities
-    packages+=" gnome-terminal-transparency gnome-browser-connector decklink ttf-win10 p7zip-gui"
+    packages+=" gnome-terminal-transparency gnome-browser-connector "
 
     # Themes
     packages+=" adwaita-dark "
@@ -58,9 +53,19 @@ install_yay_packages() {
     packages+=" heroic-games-launcher minecraft-launcher pamac-flatpak "
 
     # Custom Packages
-    packages+=" vscodium keepassxc obsidian goxlr-utility thorium-browser-bin spotify obs-studio-git gpu-screen-recorder-git media-downloader streamdeck-ui fontforge "
+    packages+=" vscodium keepassxc obsidian goxlr-utility thorium-browser-bin obs-studio-git gpu-screen-recorder-git streamdeck-ui fontforge "
     
-    bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S --noconfirm $packages") # Automatically Install listed packages without confirmation
+    su -c "yay -S --noconfirm $packages" $USER
+    #bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S --noconfirm $packages") # Automatically Install listed packages without confirmation
+}
+
+install_annoying_yay_packages() {
+    # Mostly installs that require manual intervention and or import of keys
+    packages=""
+
+    packages+=" spotify media-downloader "
+
+    yay -S $packages
 }
 
 install_flatpak_packages() {
@@ -77,13 +82,13 @@ basic_configs() {
 }
 
 cleanup() {
-    su -c "pacman -Syu" root && su -c "paccache -rk1" root && su -c "paccache -ruk0" root
+    su -c "pacman -Syu && paccache -rk1 && paccache -ruk0" root
     # Applies available updates and clears cached versions
     exit
 }
 
 if [ "$(id -u)" -eq 0 ]; then
-    su -c './install' $USER
+    su -c './install' @USER
 else
     install_yay && sleep 1 &&
     install_flatpak && sleep 1 &&
