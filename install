@@ -8,19 +8,19 @@ install_yay() {
     git clone https://aur.archlinux.org/yay.git # Use git to clone yay from the AUR
     chown -R riley:riley /tmp/yay
     cd /tmp/yay # Change Directory to the new yay folder
-    su -c 'makepkg' $USER
+    makepkg
 ## su - swich user
 ## -c - issue command(s)
 ## 'makepkg' - make the AUR package(s)
 ## $USER - Global Variable: User Account to be used
     
-    pacman -U --noconfirm yay-*.tar.zst # use pacman to install yay (and yay-debug) without prompting for confirmations
+    su -c "pacman -U --noconfirm yay-*.tar.zst" root # use pacman to install yay (and yay-debug) without prompting for confirmations
     cd / # Change directory to root
     rm -rf /tmp/yay # Delete the yay/ directory from /tmp
 }
 
 install_flatpak() {
-    pacman -S --noconfirm flatpak 
+    su -c "pacman -S --noconfirm flatpak" root
 }
 
 install_system_packages() {
@@ -36,13 +36,13 @@ install_system_packages() {
     packages+=" pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse wireplumber reaper firefox "
 
     # Desktop / WM and Required Tools
-    packages+=" xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-desktop gdm gnome-system-monitor gnome-tweaks gnome-control-center gnome-keyring gnome-bluetooth nautilus "
+    packages+=" xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-desktop gdm gnome-system-monitor gnome-tweaks gnome-control-center gnome-keyring gnome-bluetooth nautilus xorg "
 
-    pacman -S --noconfirm $packages
+    su -c "pacman -S --noconfirm $packages" root
 }
 
 install_steam() {
-    pacman -S --noconfirm steam
+    su -c "pacman -S --noconfirm steam" root
 }
 
 install_yay_packages() {
@@ -60,7 +60,7 @@ install_yay_packages() {
     # Custom Packages
     packages+=" vscodium keepassxc obsidian goxlr-utility thorium-browser-bin spotify obs-studio-git gpu-screen-recorder-git media-downloader streamdeck-ui fontforge "
     
-    yay -S --noconfirm $packages # Automatically Install listed packages without confirmation
+    bash --init-file <(echo ". \"$HOME/.bashrc\"; yay -S --noconfirm $packages") # Automatically Install listed packages without confirmation
 }
 
 install_flatpak_packages() {
@@ -68,22 +68,22 @@ install_flatpak_packages() {
 }
 
 setup_systemd() {
-    systemctl enable gdm.service # Enable the Gnome Display Manager
-    systemctl enable DesktopVideoHelper.service
+    su -c "systemctl enable gdm" root # Enable the Gnome Display Manager
+    su -c "systemctl enable DesktopVideoHelper" root 
 }
 
 basic_configs() {
-    cp -s /usr/bin/nano /usr/bin/vi #similar to ln, symlink nano to vi as default editor
+    su -c "cp -s /usr/bin/nano /usr/bin/vi" root #similar to ln, symlink nano to vi as default editor
 }
 
 cleanup() {
-    sudo pacman -Syu && sudo paccache -rk1 && sudo paccache -ruk0
+    su -c "su -c "pacman -Syu" root && su -c "paccache -rk1" root && su -c "paccache -ruk0" root
     # Applies available updates and clears cached versions
     exit
 }
 
 if [ "$(id -u)" -eq 0 ]; then
-    su -c './install' $USER
+    su -c './install' @USER
 else
     install_yay && sleep 1 &&
     install_flatpak && sleep 1 &&
