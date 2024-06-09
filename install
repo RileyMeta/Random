@@ -73,9 +73,7 @@ cleanup() {
     exit
 }
 
-if [ "$(id -u)" -eq 0 ]; then
-    su -c './install' $USER
-else
+start() {
     install_yay && sleep 1 &&
     install_system_packages && sleep 1 &&
     install_flatpak && sleep 1 &&
@@ -85,4 +83,5 @@ else
     setup_systemd && sleep 1 &&
     basic_configs && sleep 1 &&
     cleanup && sleep 1 && exit
-fi
+}
+start
