@@ -4,6 +4,7 @@ USER='riley'
 # change to your user-account
 
 install_yay() {
+    clear && echo "Making yay"
     cd /tmp/
     git clone https://aur.archlinux.org/yay.git
     chown -R riley:riley /tmp/yay
