@@ -54,17 +54,19 @@ swap() {
             $SWAP_PT="$DISK"'p2'
             $ROOT="$DISK"'p3'
         else
-            $BOOT="$DISK"'1'
-            $SWAP_PT="$DISK"'2'
-            $ROOT="$DISK"'3'
+            do
+                $BOOT="$DISK"'1'
+                $SWAP_PT="$DISK"'2'
+                $ROOT="$DISK"'3'
         fi
     else
         if $DISK_TYPE="nvme"
             $BOOT="$DISK"'p1'
             $ROOT="$DISK"'p2'
         else
-            $BOOT="$DISK"'1'
-            $ROOT="$DISK"'2'
+            do
+                $BOOT="$DISK"'1'
+                $ROOT="$DISK"'2'
         fi
     fi
 }
