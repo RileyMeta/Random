@@ -1,19 +1,140 @@
 #!/bin/bash
 
-USER='riley'
-# change to your user-account
+## This is currently configured to only work for NVME Devices (reference "p1" "p2" and "p3" after $DISK)
 
-install_yay() {
-    clear && echo "Making yay"
+USER='riley'
+HOSTNAME='RarchBTW'
+DISK='/dev/nvme0n1'
+DISK_FS='ext4'
+SWAP=true
+LOCALTIME="/US/Eastern"
+BOOTLOADER="grub"
+SMB_USER=""
+SMB_PASS=""
+
+
+check_ip_connection() {
+    ping -c 3 google.com && _timedatectl || ping_fail
+}
+
+ping_fail() {
+    clear
+    sleep 1
+    echo "Please configure your Internet Connection"
+    echo "'iwctl station wlan0 show' to list available SSIDs"
+    sleep 1
+    bash
+}
+
+_timedatectl() {
+    timedatectl | grep "System clock synchronized"
+    sleep 2
+    if timedatectl | grep 'yes'; then
+        _format_disks
+    else
+        timedatectl set-ntp true && _timedatectl
+    fi
+
+}
+
+_cfdisk() {
+    cfdisk $DISK && _mkfs
+}
+
+_mkfs() {
+    mkfs.fat -F 32 $DISK"p1"
+    if $SWAP = true; then
+        mkswap $DISK"p2"
+        mkfs.ext4 $DISK"p3"
+    else
+        mkfs.ext4 $DISK"p2"
+    fi
+}
+
+_mount_drives() {
+    mount --mkdir $DISK"p1" /mnt/boot
+    if $SWAP = true; then
+        swapon $DISK"p2"
+        mount --mkdir $DISK"p3" /mnt
+    else
+        mount $DISK"p2" /mnt
+    fi
+}
+
+_pacman_config() {
+    sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 12/g' /mnt/etc/pacman.conf
+    sed -i 's/#Color/Color/g' /mnt/etc/pacman.conf
+}
+
+_pacstrap() {
+    clear && echo "Installing the Base System"
+    sleep 2
+    pacstrap -K /mnt base linux linux-firmware amd-ucode networkmanager nano man-db
+}
+
+_install_yay() {
     cd /tmp/
     git clone https://aur.archlinux.org/yay.git
-    chown -R riley:riley /tmp/yay
+    chown -R $USER:$USER /tmp/yay
     cd /tmp/yay
-    makepkg
+    su -c "makepkg" $USER
     echo "Confirm installation of Yay"
-    su -c "pacman -U --noconfirm yay-*.tar.zst" root
+    pacman -U --noconfirm yay-*.tar.zst
     cd /
-    rm -rf /tmp/yay
+    rm -rf /tmp/yay && echo "adwaita-dark davinci-resolve-studio decklink gnome-terminal-transparency goxlr-utility gpu-screen-recorder-git heroic-games-launcher jellyfin-media-player keyring media-downloader minecraft-launcher obs-studio-git p7zip-gui pamac-flatpak pyinstaller qt6-tools-desktop spotify streamdeck-ui thorium-browser-bin ttf-win10 vscodium yay
+" > /tmp/AUR_Packages
+}
+
+_install_bootloader() {
+    clear && echo "Installing the Bootloader ($BOOTLOADER)"
+    pacman -S --noconfirm efibootmgr grub &&
+    mount --mkdir $DISK"p1" /boot
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB &&
+    sed -i 's/GRUB_TIMEOUT=5/GRUB_TIMEOUT=0/g' &&
+    sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet nvidia_drm.modeset=1"/g' &&
+    grub-mkconfig -o /boot/grub/grub.cfg
+}
+
+_basic_configs() {
+    ln -svf /usr/bin/nano /usr/bin/vi
+    sleep 1
+    genfstab -U /mnt >> /mnt/etc/fstab
+    cat >> /etc/fstab<< EOF
+
+# Game Drive
+/dev/sda1                /mnt/Games         auto    nosuid,nodev,nofail,x-gvfs-show 0 0
+
+# Content Drive
+/dev/sdb1                /mnt/Content       auto    nosuid,nodev,nofail,x-gvfs-show 0 0
+
+# Pyroclastic
+//192.168.1.126/share	 /mnt/Pyroclastic	cifs 	credentials=/home/riley/.smbcreds,noperm,file_mode=0777,dir_mode=0777,iocharset=utf8,noauto,nofail 0 0
+EOF
+    cat >> /home/$USER/.smbcreds<< EOF
+username=$SMB_USER
+password=$SMB_PASS
+EOF
+    chown root:root /home/$USER/.smbcreds && chmod -v 400 /home/$USER/.smbcreds
+    hwclock --systohc
+    locale-gen && echo "LANG=en_US.UTF-8" > /etc/locale.conf
+    echo $HOSTNAME > /etc/hostname
+    mkinitcpio -P &&
+    clear && echo "Please set the Root Password"
+    sleep 1.6 && passwd
+    useradd -m -G users,wheel,video,audio -s /bin/bash $USER
+    clear && echo "Please set your User Password" && sleep 1.6 &&
+    passwd $USER
+    _install_yay
+    _install_packages
+    _install_bootloader
+    _install_flatpak
+    _install_steam
+    _setup_systemd
+    _clean_up
+}
+
+_chroot_config() {
+    _basic_configs | arch-chroot /mnt
 }
 
 install_flatpak() {
@@ -21,8 +142,8 @@ install_flatpak() {
     su -c "pacman -S --noconfirm flatpak" root
 }
 
-install_system_packages() {
-    local packages="" # Set a blank local variable that can be added to later.
+_install_packages() {
+    local packages=""
 
     # Basic System-Wide Tools
     packages+=" xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader libadwaita adwaita-cursors breeze breeze-icons "
@@ -40,63 +161,23 @@ install_system_packages() {
     su -c "pacman -S --noconfirm $packages" root
 }
 
-install_steam() {
+_install_steam() {
     clear && echo "Installing Steam" &&
     su -c "pacman -S --noconfirm steam" root
 }
 
-install_yay_packages() {
-    clear && echo "Please run 'yay -S \$(cat /tmp/package_list)' to install the rest of your apps." &&
-    echo "heroic-games-launcher minecraft-launcher pamac-flatpak adwaita-dark gnome-terminal-transparency gnome-browser-connector decklink ttf-win10 p7zip-gui spotify media-downloader vscodium keepassxc obsidian goxlr-utility thorium-browser-bin obs-studio-git gpu-screen-recorder-git streamdeck-ui fontforge" > /tmp/package_list &&
-    bash
-}
-
-install_flatpak_packages() {
-    clear && echo "Installing Flatpaks" &&
-    flatpak install com.discordapp.Discord -y
-}
-
-setup_systemd() {
+_setup_systemd() {
     clear && echo "Enabling Custom SystemD Services" &&
-    su -c "systemctl enable gdm; systemctl enable DesktopVideoHelper" root # Enable the Gnome Display Manager
+    su -c "systemctl enable gdm; systemctl enable bluetooth" root # Enable the Gnome Display Manager
 }
 
-basic_configs() {
-    clear && echo "Setting Basic Configurations" && sleep 1 &&
-    su -c "cp -sv /usr/bin/nano /usr/bin/vi && sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 12/g' /etc/pacman.conf && echo 'Pacman Parallel Downloads set to "12"' && sed -i 's/#Color/Color/g' /etc/pacman.conf && echo 'Enabled colors in Pacman output'
-    cat >> /etc/fstab<< EOF
-
-# Game Drive
-/dev/sda1 /mnt/Games auto nosuid,nodev,nofail,x-gvfs-show 0 0
-
-# Content Drive
-/dev/sdb1 /mnt/Content auto nosuid,nodev,nofail,x-gvfs-show 0 0
-
-# Pyroclastic
-//192.168.1.126/share	 /mnt/Pyroclastic	cifs 	credentials=/home/riley/.smbcreds,noperm,file_mode=0777,dir_mode=0777,iocharset=utf8,noauto,nofail 0 0
-EOF" root
-}
-
-cleanup() {
+_clean_up() {
     clear && echo "Running System Update and Clearing Cached Data" &&
     su -c "pacman -Syu && paccache -rk1 && paccache -ruk0" root
     # Applies available updates and clears cached versions
     exit
 }
 
-start() {
-    install_system_packages && sleep 1 &&
-    basic_configs && sleep 1 &&
-    install_steam && install_flatpak && sleep 1 &&
-    install_yay && sleep 1 &&
-    # install_flatpak_packages && sleep 1 &&
-    install_yay_packages && sleep 1 &&
-    setup_systemd && sleep 1 &&
-    cleanup && exit
-}
-
-if [ "$(id -u)" -eq 0 ]; then
-    su -c "./install" $USER
-else
-    start
-fi
+unmount_and_reboot() {
+    umount -R /mnt && reboot
+} 
