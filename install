@@ -13,7 +13,7 @@ SMB_USER=""
 SMB_PASS=""
 
 
-check_ip_connection() {
+_check_connection() {
     ping -c 3 google.com && _timedatectl || ping_fail
 }
 
@@ -180,4 +180,12 @@ _clean_up() {
 
 unmount_and_reboot() {
     umount -R /mnt && reboot
-} 
+}
+
+start() {
+    _check_connection &&
+    _timedatectl &&
+    _cfdisk && _mount_drives &&
+    _pacman_config && _pacstrap &&
+    _chroot_config && unmount_and_reboot
+}
