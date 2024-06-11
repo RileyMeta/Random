@@ -1,23 +1,26 @@
 #!/bin/bash
 
-## This is currently configured to only work for NVME Devices (reference "p1" "p2" and "p3" after $DISK)
+## This is currently configured to work with "nvme" "sda" and "vda"
 
-USER='riley'
-HOSTNAME='RarchBTW'
-DISK='/dev/nvme0n1'
+USER="riley"
+HOSTNAME="RarchBTW"
+DISK=""
+DISK_TYPE="nvme"
 DISK_FS='ext4'
 SWAP=true
 LOCALTIME="/US/Eastern"
 BOOTLOADER="grub"
 SMB_USER=""
 SMB_PASS=""
-
+SWAP_PT=""
+ROOT=""
+BOOT=""
 
 _check_connection() {
-    ping -c 3 google.com && _timedatectl || ping_fail
+    ping -c 3 google.com && _timedatectl || _ping_fail
 }
 
-ping_fail() {
+_ping_fail() {
     clear
     sleep 1
     echo "Please configure your Internet Connection"
@@ -29,41 +32,73 @@ ping_fail() {
 _timedatectl() {
     timedatectl | grep "System clock synchronized"
     sleep 2
-    if timedatectl | grep 'yes'; then
+    if timedatectl | grep -q 'yes'; then
         _format_disks
     else
-        timedatectl set-ntp true && _timedatectl
+        timedatectl set-ntp true && _timedatectl # Not sure.
     fi
+}
 
+disk_type() {
+    case $DISK_TYPE in
+    "sda") $DISK="/dev/sda";;
+    "vda") $DISK="/dev/vda";;
+    "nvme") $DISK="/dev/nvme0n1";;
+    esac 
+}
+
+swap() {
+    if $SWAP = true; then
+        if $DISK_TYPE="nvme"
+            $BOOT="$DISK"'p1'
+            $SWAP_PT="$DISK"'p2'
+            $ROOT="$DISK"'p3'
+        else
+            $BOOT="$DISK"'1'
+            $SWAP_PT="$DISK"'2'
+            $ROOT="$DISK"'3'
+        fi
+    else
+        if $DISK_TYPE="nvme"
+            $BOOT="$DISK"'p1'
+            $ROOT="$DISK"'p2'
+        else
+            $BOOT="$DISK"'1'
+            $ROOT="$DISK"'2'
+        fi
+    fi
 }
 
 _cfdisk() {
+    clear &&
     cfdisk $DISK && _mkfs
 }
 
 _mkfs() {
-    mkfs.fat -F 32 $DISK"p1"
+    mkfs.fat -F 32 $BOOT
+    mkfs.$DISK_TYPE $ROOT
     if $SWAP = true; then
-        mkswap $DISK"p2"
-        mkfs.ext4 $DISK"p3"
+        mkswap $SWAP_PT
     else
-        mkfs.ext4 $DISK"p2"
+        : # return
     fi
 }
 
 _mount_drives() {
-    mount --mkdir $DISK"p1" /mnt/boot
+    mount --mkdir $BOOT /mnt/boot
+    mount $ROOT /mnt
     if $SWAP = true; then
-        swapon $DISK"p2"
-        mount --mkdir $DISK"p3" /mnt
+        swapon $SWAP_PT
     else
-        mount $DISK"p2" /mnt
+        : # Return
     fi
 }
 
-_pacman_config() {
-    sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 12/g' /mnt/etc/pacman.conf
-    sed -i 's/#Color/Color/g' /mnt/etc/pacman.conf
+_configure_iso_pacman() {
+    clear && echo "Setting ISO Pacman config"
+    sleep 1 &&
+    sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 12/g' /etc/pacman.conf && echo "Parallel Downloads set to '12'"
+    sed -i 's/#Color/Color/g' /etc/pacman.conf && echo "Colors enabled in Pacman"
 }
 
 _pacstrap() {
@@ -71,6 +106,23 @@ _pacstrap() {
     sleep 2
     pacstrap -K /mnt base linux linux-firmware amd-ucode networkmanager nano man-db
 }
+
+_copy_files() {
+    cat >> /chroot_install<< EOF
+
+USER="$USER"
+HOSTNAME="$HOSTNAME"
+DISK="$DISK"
+DISK_TYPE="$DISK_TYPE"
+DISK_FS='$DISK_FS'
+SWAP=$SWAP
+LOCALTIME="$LOCALTIME"
+BOOTLOADER="$BOOTLOADER"
+SMB_USER="$SMB_USER"
+SMB_PASS="$SMB_PASS"
+SWAP_PT="$SWAP_PT"
+ROOT="$ROOT"
+BOOT="$BOOT"
 
 _install_yay() {
     cd /tmp/
@@ -86,9 +138,9 @@ _install_yay() {
 }
 
 _install_bootloader() {
-    clear && echo "Installing the Bootloader ($BOOTLOADER)"
+    clear && echo "Installing the Bootloader (Grub)"
     pacman -S --noconfirm efibootmgr grub &&
-    mount --mkdir $DISK"p1" /boot
+    mount --mkdir $BOOT /boot
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB &&
     sed -i 's/GRUB_TIMEOUT=5/GRUB_TIMEOUT=0/g' &&
     sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet nvidia_drm.modeset=1"/g' &&
@@ -100,20 +152,13 @@ _basic_configs() {
     sleep 1
     genfstab -U /mnt >> /mnt/etc/fstab
     cat >> /etc/fstab<< EOF
-
-# Game Drive
-/dev/sda1                /mnt/Games         auto    nosuid,nodev,nofail,x-gvfs-show 0 0
-
-# Content Drive
-/dev/sdb1                /mnt/Content       auto    nosuid,nodev,nofail,x-gvfs-show 0 0
-
 # Pyroclastic
 //192.168.1.126/share	 /mnt/Pyroclastic	cifs 	credentials=/home/riley/.smbcreds,noperm,file_mode=0777,dir_mode=0777,iocharset=utf8,noauto,nofail 0 0
-EOF
+\EOF
     cat >> /home/$USER/.smbcreds<< EOF
 username=$SMB_USER
 password=$SMB_PASS
-EOF
+\EOF
     chown root:root /home/$USER/.smbcreds && chmod -v 400 /home/$USER/.smbcreds
     hwclock --systohc
     locale-gen && echo "LANG=en_US.UTF-8" > /etc/locale.conf
@@ -124,17 +169,6 @@ EOF
     useradd -m -G users,wheel,video,audio -s /bin/bash $USER
     clear && echo "Please set your User Password" && sleep 1.6 &&
     passwd $USER
-    _install_yay
-    _install_packages
-    _install_bootloader
-    _install_flatpak
-    _install_steam
-    _setup_systemd
-    _clean_up
-}
-
-_chroot_config() {
-    _basic_configs | arch-chroot /mnt
 }
 
 install_flatpak() {
@@ -178,15 +212,28 @@ _clean_up() {
     exit
 }
 
+
+EOF
+    sed -i 's/\\EOF/EOF/g' /chroot_install
+    chmod +x /chroot_install
+}
+
+_chroot() {
+    arch-chroot /mnt
+}
+
 unmount_and_reboot() {
     umount -R /mnt && reboot
 }
 
-start() {
+init() {
+    disk_type && swap &&
     _check_connection &&
     _timedatectl &&
-    _cfdisk && _mount_drives &&
-    pacman_config && _pacstrap && _pacman_config &&
-    _chroot_config && unmount_and_reboot
+    _cfdisk && _mkfs &&
+    _mount_drives && 
+    _configure_iso_pacman &&
+    _pacstrap && _copy_files &&
+    _chroot && unmount_and_reboot
 }
-start
+init
