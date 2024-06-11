@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## This is currently configured to work with "nvme" "sda" and "vda"
+## This is currently configured to do 
 
 USER="riley"
 HOSTNAME="RarchBTW"
@@ -49,25 +49,33 @@ disk_type() {
 
 swap() {
     if $SWAP = true; then
-        if $DISK_TYPE="nvme"
-            $BOOT="$DISK"'p1'
-            $SWAP_PT="$DISK"'p2'
-            $ROOT="$DISK"'p3'
-        else
-            do
-                $BOOT="$DISK"'1'
-                $SWAP_PT="$DISK"'2'
-                $ROOT="$DISK"'3'
-        fi
+        _assign_drives_swap 
     else
-        if $DISK_TYPE="nvme"
-            $BOOT="$DISK"'p1'
-            $ROOT="$DISK"'p2'
-        else
-            do
-                $BOOT="$DISK"'1'
-                $ROOT="$DISK"'2'
-        fi
+        _assign_drives
+    fi
+}
+
+_assign_drives_swap() {
+if $DISK_TYPE="nvme"
+    then
+        $BOOT="$DISK"'p1'
+        $SWAP_PT="$DISK"'p2'
+        $ROOT="$DISK"'p3'
+    else
+        $BOOT="$DISK"'1'
+        $SWAP_PT="$DISK"'2'
+        $ROOT="$DISK"'3'
+    fi
+}
+
+_assign_drives() {
+    if $DISK_TYPE="nvme"
+    then
+        $BOOT="$DISK"'p1'
+        $ROOT="$DISK"'p2'
+    else
+        $BOOT="$DISK"'1'
+        $ROOT="$DISK"'2'
     fi
 }
 
@@ -154,6 +162,13 @@ _basic_configs() {
     sleep 1
     genfstab -U /mnt >> /mnt/etc/fstab
     cat >> /etc/fstab<< EOF
+
+# Game Drive
+/dev/sda1                /mnt/Games         auto    nosuid,nodev,nofail,x-gvfs-show 0 0
+
+# Content Drive
+/dev/sdb1                /mnt/Content       auto    nosuid,nodev,nofail,x-gvfs-show 0 0
+
 # Pyroclastic
 //192.168.1.126/share	 /mnt/Pyroclastic	cifs 	credentials=/home/riley/.smbcreds,noperm,file_mode=0777,dir_mode=0777,iocharset=utf8,noauto,nofail 0 0
 \EOF
@@ -173,7 +188,7 @@ password=$SMB_PASS
     passwd $USER
 }
 
-install_flatpak() {
+_install_flatpak() {
     clear && echo "Installing Flatpak" &&
     su -c "pacman -S --noconfirm flatpak" root
 }
@@ -214,13 +229,24 @@ _clean_up() {
     exit
 }
 
-
+_init() {
+    _install_yay
+    _install_bootloader
+    _basic_configs
+    _install_flatpak
+    _install_packages
+    _install_steam
+    _setup_systemd
+    _clean_up 
+}
+init
 EOF
     sed -i 's/\\EOF/EOF/g' /chroot_install
     chmod +x /chroot_install
 }
 
 _chroot() {
+    bash --init-file <(echo "./second-install-file")
     arch-chroot /mnt
 }
 
