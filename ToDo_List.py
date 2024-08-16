@@ -218,14 +218,32 @@ def load_json():
     if choice.lower() == 'back':
         main_menu()
     else:
-        file_path = f"{choice}.json"
+        push_choice = choice
+        confirm_load(push_choice)
+
+def confirm_load(push_choice):
+    global todo_list
+    global json_loaded
+    clear()
+    prompt = "ToDo List\n"
+    prompt += f"\nAre you sure you would like to load '{push_choice}.json'?"
+    prompt += "\n[Yes] or [No]"
+    print(prompt)
+    choice = input("\n> ")
+    file_path = f"{push_choice}.json"
+    if choice.lower() == 'yes':
         try:
             with open(file_path, 'r') as json_file:
                 todo_list = json.load(json_file)
                 json_loaded = True
         except FileNotFoundError:
             error(2)
+    elif choice.lower() == 'no':
+        load_json()
+    else:
+        error()
     main_menu()
+
 
 if __name__ == '__main__':
     main_menu()
