@@ -10,8 +10,6 @@ def signal_handler(sig, frame):
     print(prompt)
     exit(0)
 
-signal.signal(signal.SIGINT, signal_handler)
-
 todo_list = []
 json_loaded = False
 
@@ -34,14 +32,12 @@ def error(reason=0, item=None):
             print(f"{item['name']} is already completed.")
     sleep(1)
 
-def main_menu():
+def main_menu(run):
     global json_loaded
     clear()
     prompt = "ToDo List\n"
     if json_loaded:
         prompt += "\n[json loaded]"
-    else:
-        prompt += ""
     prompt += f"\nYou currently have {len(todo_list)} items."
     prompt += "\n"
     prompt += "\n1) Add Item"
@@ -52,26 +48,28 @@ def main_menu():
     prompt += "\n6) Load from Json"
     prompt += "\n7) Quit"
     print(prompt)
-    while True:
+    while run:
         choice = str(input("\n> "))
         match choice:
-            case '1':
+            case '1'|'add':
                 add_item()
-            case '2':
+            case '2'|'view':
                 view_items()
-            case '3':
+            case '3'|'remove':
                 remove_item()
-            case '4':
+            case '4'|'mark'|'done':
                 mark_done()
-            case '5':
+            case '5'|'save':
                 save_json()
-            case '6':
+            case '6'|'load':
                 load_json()
-            case '7':
+            case '7'|'quit'|'q':
                 clear()
                 exit(0)
             case _:
                 error()
+                main_menu(run)
+        break
 
 def add_item():
     clear()
@@ -81,6 +79,7 @@ def add_item():
     while True:
         item_name = str(input("\n> "))
         confirm_name(item_name)
+        break
 
 def confirm_name(item_name):
     clear()
@@ -92,9 +91,9 @@ def confirm_name(item_name):
     match choice.lower():
         case "yes":
             todo_list.append({'name': item_name, 'complete': False})
-            main_menu()
+            main_menu(run)
         case "no":
-            main_menu()
+            main_menu(run)
 
 def view_items():
     clear()
@@ -110,7 +109,7 @@ def view_items():
     print(prompt)
     choice = str(input("\n> "))
     if choice == 'back':
-        main_menu()
+        main_menu(run)
     else:
         error()
         view_items()
@@ -124,7 +123,7 @@ def remove_item():
         print(prompt)
         choice = str(input("\n> "))
         if choice == 'back':
-            main_menu()
+            main_menu(run)
     else:
         prompt += "\nTo remove an item, type it's index number"
         for num, item in enumerate(todo_list, 1):
@@ -148,7 +147,7 @@ def confirm_delete(item):
             todo_list.remove(item)
             remove_item()
         case 'no':
-            main_menu()
+            main_menu(run)
 
 def mark_done():
     clear()
@@ -160,7 +159,7 @@ def mark_done():
         print(prompt)
         choice = str(input("> "))
         if choice.lower() == 'back':
-            main_menu()
+            main_menu(run)
     else:
         prompt += f"\nYou currently have {len(todo_list)} items."
         prompt += "\nTo mark an item as complete, type it's index number."
@@ -201,7 +200,7 @@ def save_json():
     print(prompt)
     choice = str(input("\n> ")).lower()
     if choice == 'back':
-        main_menu()
+        main_menu(run)
     else:
         file_path = f"{choice}.json"
         confirm_file_name(file_path)
@@ -217,9 +216,9 @@ def confirm_file_name(file_path):
         with open(file_path, 'w') as json_file:
             json.dump(todo_list, json_file, indent=4)
         unsaved_changes = False
-        main_menu()
+        main_menu(run)
     else:
-        main_menu()
+        main_menu(run)
         unsaved_changes = True
 
 def load_json():
@@ -230,7 +229,7 @@ def load_json():
     print(prompt)
     choice = input("\n> ")
     if choice.lower() == 'back':
-        main_menu()
+        main_menu(run)
     else:
         push_choice = choice
         confirm_load(push_choice)
@@ -256,8 +255,9 @@ def confirm_load(push_choice):
         load_json()
     else:
         error()
-    main_menu()
-
+    main_menu(run)
 
 if __name__ == '__main__':
-    main_menu()
+    signal.signal(signal.SIGINT, signal_handler)
+    run = True
+    main_menu(run)
