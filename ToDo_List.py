@@ -1,6 +1,16 @@
 import os
 import time
 import json
+import signal
+
+def signal_handler(sig, frame):
+    clear()
+    prompt = 'ToDo List Closed Abruptly'
+    prompt += "\nIf this was due to an issue or a bug, please report it to the Github."
+    print(prompt)
+    exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 todo_list = []
 json_loaded = False
@@ -11,7 +21,7 @@ def clear():
 def sleep(duration):
     time.sleep(duration)
 
-def error(reason=0):
+def error(reason=0, item=None):
     clear()
     match reason:
         case 0:
@@ -20,6 +30,8 @@ def error(reason=0):
             print(f"Warning!: Unsaved Changes Detected")
         case 2:
             print(f"Error: File Not Found")
+        case 3:
+            print(f"{item['name']} is already completed.")
     sleep(1)
 
 def main_menu():
@@ -29,7 +41,7 @@ def main_menu():
     if json_loaded:
         prompt += "\n[json loaded]"
     else:
-        prompt += "\n"
+        prompt += ""
     prompt += f"\nYou currently have {len(todo_list)} items."
     prompt += "\n"
     prompt += "\n1) Add Item"
@@ -157,7 +169,11 @@ def mark_done():
         print(prompt)
         choice = int(input("\n> "))
         if choice == num:
-            confirm_done(item)
+            if item['complete'] == True:
+                error(3, item)
+                mark_done()
+            else:
+                confirm_done(item)
         else:
             error()
             mark_done()
@@ -207,8 +223,6 @@ def confirm_file_name(file_path):
         unsaved_changes = True
 
 def load_json():
-    global todo_list
-    global json_loaded
     clear()
     prompt = "ToDo List\n"
     prompt += "\nTo load a Json file, please type it's name without the extension."
