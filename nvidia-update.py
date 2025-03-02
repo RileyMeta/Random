@@ -32,7 +32,7 @@ def check_for_update():
     elif installed == latest:
         print(f"NVIDIA driver is up to date (Version: {installed}).")
     else:
-        send_notification(get_installed_version())
+        send_notification(latest)
 
 def send_notification(version):
     subprocess.run(["notify-send", "Nvidia Driver Update Available", f"Version: {version}"])
