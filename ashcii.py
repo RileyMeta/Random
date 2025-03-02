@@ -1,6 +1,10 @@
 ### A simple program tuned to look for common escape characters used in ASCII art and pad them for use in the shell.
 
-ascii_art = ["You can t\est", "u$ing", "`these"]
+ascii_art = ["You can t\est",
+             "u$ing",
+             "`these"]
+# Ascii should be formatted this way, if using an ascii art generator it should print out strings with spaces.
+
 
 def get_filename():
     print("Please input the name of the file:")
