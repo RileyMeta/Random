@@ -1,267 +1,189 @@
 #!/bin/bash
 
-## This is currently configured to do 
+#
+# Global Variables used throughout the Script
+#
+DEVICE="/dev/nvme0n1" # Temp, remove after testing, Dialog Script has a function for getting the device
+if [[ $DEVICE == *"nvme"*]]; then   # Required because Linux appends a `p` for each Partition
+    BOOT="${DEVICE}p1"
+    SWAP="${DEVICE}p2"
+    ROOT="${DEVICE}p3"
+else                            # Unless it's Sata, or otherwise not nvme.
+    BOOT="${DEVICE}1"
+    SWAP="${DEVICE}2"
+    ROOT="${DEVICE}3"
+fi
 
-USER="riley"
-HOSTNAME="RarchBTW"
-DISK=""
-DISK_TYPE="nvme"
-DISK_FS='ext4'
-SWAP=true
-LOCALTIME="/US/Eastern"
-BOOTLOADER="grub"
-SMB_USER=""
-SMB_PASS=""
-SWAP_PT=""
-ROOT=""
-BOOT=""
+EDITOR=""                       # nano, vi, vim, nvim, emacs, ed, etc; leave blank for none (Not recommended)
+DESKTOP=""                      # KDE Plasma, Gnome, XFCE4, MATE, Cinnamon, etc; "None" for headless/server
+HOSTNAME=""                     # What your computer is known as on networks
+ROOT_PASSWORD=""                # The Root account password (Leave empty to disable *hardmode*)
+USER_NAME=""                    # Your primary user account's name
+USER_SUDO=false                 # Should your user account have sudo privileges
+USER_PASSWORD=""                # The password for your user account
+LOCALE=""                       # The Locale / language for your computer
+TIMEZONE=""                     # The timezone of your computer
 
-_check_connection() {
-    ping -c 3 google.com && _timedatectl || _ping_fail
+#
+# Helper Functions
+#
+archroot() {
+    # User-Friendly way to issue commands from outside the chroot
+    flag=$@
+    arch-chroot /mnt $flag
 }
 
-_ping_fail() {
+nspawn() {
+    # User-Friendly way to start services from outside the chroot
+    flag=$@
+    systemd-nspawn -D /mnt -- systemctl enable $flag.service
+}
+
+catastrophic_failure() { # In the event of a catastrophic failure, display the error message
+    argument=$@
     clear
-    sleep 1
-    echo "Please configure your Internet Connection"
-    echo "'iwctl station wlan0 show' to list available SSIDs"
-    sleep 1
-    bash
+    echo -e "Catastrophic Failure: ${argument}"
 }
 
-_timedatectl() {
-    timedatectl | grep "System clock synchronized"
-    sleep 2
-    if timedatectl | grep -q 'yes'; then
-        _format_disks
-    else
-        timedatectl set-ntp true && _timedatectl # Not sure.
-    fi
+ping_fail() {
+    clear
+    prompt="Unfortunately an internet connection could not be established."
+    prompt+="\nThe Arch installation process uses the network to download system packages."
+    prompt+="\nIf you're using WiFi, please try 'iwctl station wlan0 connect <Network_SSID>'"
+    prompt+="\nyou may need to change 'wlan0' to match your hardware."
+    echo -e $prompt
 }
 
-disk_type() {
-    case $DISK_TYPE in
-    "sda") $DISK="/dev/sda";;
-    "vda") $DISK="/dev/vda";;
-    "nvme") $DISK="/dev/nvme0n1";;
-    esac 
+
+
+#
+# Actual Installation Steps taking place below here
+#
+init_test() { # Ensure that the host has an Internet Connection
+    ping -c 1 google.com || ping_fail
+    timedatectl && install # Begin the install
 }
 
-swap() {
-    if $SWAP = true; then
-        _assign_drives_swap 
-    else
-        _assign_drives
-    fi
-}
+partition() {
+  cat <<EOF | fdisk $DEVICE
+g
+n
+1
 
-_assign_drives_swap() {
-if $DISK_TYPE="nvme"
-    then
-        $BOOT="$DISK"'p1'
-        $SWAP_PT="$DISK"'p2'
-        $ROOT="$DISK"'p3'
-    else
-        $BOOT="$DISK"'1'
-        $SWAP_PT="$DISK"'2'
-        $ROOT="$DISK"'3'
-    fi
-}
++1G
+t
+1
+n
+2
 
-_assign_drives() {
-    if $DISK_TYPE="nvme"
-    then
-        $BOOT="$DISK"'p1'
-        $ROOT="$DISK"'p2'
-    else
-        $BOOT="$DISK"'1'
-        $ROOT="$DISK"'2'
-    fi
-}
++4G
+t
+2
+swap
+n
+3
 
-_cfdisk() {
-    clear &&
-    cfdisk $DISK && _mkfs
-}
 
-_mkfs() {
-    mkfs.fat -F 32 $BOOT
-    mkfs.$DISK_TYPE $ROOT
-    if $SWAP = true; then
-        mkswap $SWAP_PT
-    else
-        : # return
-    fi
-}
-
-_mount_drives() {
-    mount --mkdir $BOOT /mnt/boot
-    mount $ROOT /mnt
-    if $SWAP = true; then
-        swapon $SWAP_PT
-    else
-        : # Return
-    fi
-}
-
-_configure_iso_pacman() {
-    clear && echo "Setting ISO Pacman config"
-    sleep 1 &&
-    sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 12/g' /etc/pacman.conf && echo "Parallel Downloads set to '12'"
-    sed -i 's/#Color/Color/g' /etc/pacman.conf && echo "Colors enabled in Pacman"
-}
-
-_pacstrap() {
-    clear && echo "Installing the Base System"
-    sleep 2
-    pacstrap -K /mnt base linux linux-firmware amd-ucode networkmanager nano man-db
-}
-
-_copy_files() {
-    cat >> /chroot_install<< EOF
-
-USER="$USER"
-HOSTNAME="$HOSTNAME"
-DISK="$DISK"
-DISK_TYPE="$DISK_TYPE"
-DISK_FS='$DISK_FS'
-SWAP=$SWAP
-LOCALTIME="$LOCALTIME"
-BOOTLOADER="$BOOTLOADER"
-SMB_USER="$SMB_USER"
-SMB_PASS="$SMB_PASS"
-SWAP_PT="$SWAP_PT"
-ROOT="$ROOT"
-BOOT="$BOOT"
-
-_install_yay() {
-    cd /tmp/
-    git clone https://aur.archlinux.org/yay.git
-    chown -R $USER:$USER /tmp/yay
-    cd /tmp/yay
-    su -c "makepkg" $USER
-    echo "Confirm installation of Yay"
-    pacman -U --noconfirm yay-*.tar.zst
-    cd /
-    rm -rf /tmp/yay && echo "adwaita-dark davinci-resolve-studio decklink gnome-terminal-transparency goxlr-utility gpu-screen-recorder-git heroic-games-launcher jellyfin-media-player keyring media-downloader minecraft-launcher obs-studio-git p7zip-gui pamac-flatpak pyinstaller qt6-tools-desktop spotify streamdeck-ui thorium-browser-bin ttf-win10 vscodium yay
-" > /tmp/AUR_Packages
-}
-
-_install_bootloader() {
-    clear && echo "Installing the Bootloader (Grub)"
-    pacman -S --noconfirm efibootmgr grub &&
-    mount --mkdir $BOOT /boot
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB &&
-    sed -i 's/GRUB_TIMEOUT=5/GRUB_TIMEOUT=0/g' &&
-    sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet nvidia_drm.modeset=1"/g' &&
-    grub-mkconfig -o /boot/grub/grub.cfg
-}
-
-_basic_configs() {
-    ln -svf /usr/bin/nano /usr/bin/vi
-    sleep 1
-    genfstab -U /mnt >> /mnt/etc/fstab
-    cat >> /etc/fstab<< EOF
-
-# Game Drive
-/dev/sda1                /mnt/Games         auto    nosuid,nodev,nofail,x-gvfs-show 0 0
-
-# Content Drive
-/dev/sdb1                /mnt/Content       auto    nosuid,nodev,nofail,x-gvfs-show 0 0
-
-# Pyroclastic
-//192.168.1.126/share	 /mnt/Pyroclastic	cifs 	credentials=/home/riley/.smbcreds,noperm,file_mode=0777,dir_mode=0777,iocharset=utf8,noauto,nofail 0 0
-\EOF
-    cat >> /home/$USER/.smbcreds<< EOF
-username=$SMB_USER
-password=$SMB_PASS
-\EOF
-    chown root:root /home/$USER/.smbcreds && chmod -v 400 /home/$USER/.smbcreds
-    hwclock --systohc
-    locale-gen && echo "LANG=en_US.UTF-8" > /etc/locale.conf
-    echo $HOSTNAME > /etc/hostname
-    mkinitcpio -P &&
-    clear && echo "Please set the Root Password"
-    sleep 1.6 && passwd
-    useradd -m -G users,wheel,video,audio -s /bin/bash $USER
-    clear && echo "Please set your User Password" && sleep 1.6 &&
-    passwd $USER
-}
-
-_install_flatpak() {
-    clear && echo "Installing Flatpak" &&
-    su -c "pacman -S --noconfirm flatpak" root
-}
-
-_install_packages() {
-    local packages=""
-
-    # Basic System-Wide Tools
-    packages+=" xdg-user-dirs xdg-desktop-portal nano pacman-contrib cifs-utils gvfs gvfs-smb smbclient samba bluez nvidia-utils opencl-nvidia ffnvcodec-headers xdg-utils amd-ucode hyfetch man-db ntfs-3g v4l2loopback-dkms vulkan-headers vulkan-icd-loader libadwaita adwaita-cursors breeze breeze-icons "
-
-    # Desktop Utilities
-    packages+=" gnome-calculator gnome-music gnome-disk-utility piper eog thunderbird vlc qbittorrent lutris "
-
-    # Audio Software(s)
-    packages+=" pipewire-alsa pipewire-audio pipewire-jack pipewire-pulse wireplumber reaper firefox "
-
-    # Desktop / WM and Required Tools
-    packages+=" xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-desktop gdm gnome-system-monitor gnome-tweaks gnome-control-center gnome-keyring gnome-bluetooth nautilus xorg "
-
-    clear && echo "Confirm Installation of System Packages" &&
-    su -c "pacman -S --noconfirm $packages" root
-}
-
-_install_steam() {
-    clear && echo "Installing Steam" &&
-    su -c "pacman -S --noconfirm steam" root
-}
-
-_setup_systemd() {
-    clear && echo "Enabling Custom SystemD Services" &&
-    su -c "systemctl enable gdm; systemctl enable bluetooth" root # Enable the Gnome Display Manager
-}
-
-_clean_up() {
-    clear && echo "Running System Update and Clearing Cached Data" &&
-    su -c "pacman -Syu && paccache -rk1 && paccache -ruk0" root
-    # Applies available updates and clears cached versions
-    exit
-}
-
-_init() {
-    _install_yay
-    _install_bootloader
-    _basic_configs
-    _install_flatpak
-    _install_packages
-    _install_steam
-    _setup_systemd
-    _clean_up 
-}
-init
+w
 EOF
-    sed -i 's/\\EOF/EOF/g' /chroot_install
-    chmod +x /chroot_install
 }
 
-_chroot() {
-    bash --init-file <(echo "./second-install-file")
-    arch-chroot /mnt
+format() {
+    mkfs.fat -F 32 $BOOT
+    mkswap $SWAP
+    mkfs.btrfs $ROOT
 }
 
-unmount_and_reboot() {
-    umount -R /mnt && reboot
+mount_parts() {
+    mount $ROOT /mnt
+    swapon $SWAP
+    mkdir -p /mnt/boot/efi
+    mount $BOOT /mnt/boot/efi
 }
 
-init() {
-    disk_type && swap &&
-    _check_connection &&
-    _timedatectl &&
-    _cfdisk && _mkfs &&
-    _mount_drives && 
-    _configure_iso_pacman &&
-    _pacstrap && _copy_files &&
-    _chroot && unmount_and_reboot
+install_base() {
+    pacstrap -K /mnt base base-devel linux linux-firmware linux-headers git go curl wget networkmanager grub efibootmgr $EDITOR
 }
-init
+
+generate_fstab() {
+    genfstab -U /mnt >> /mnt/etc/fstab
+}
+
+install_desktop() {
+    case $DESKTOP in
+        "KDE Plasma") 
+            packages="plasma plasma-meta konsole dolphin sddm";;
+        "Gnome") 
+            packages="gnome gnome-extras gdm";;
+        "XFCE4")
+            packages="xfce4 xfce4-goodies";;
+        "MATE")
+            packages="mate mate-extra";;
+        "Cinnamon")
+            packages="cinnamon";;
+        "None")
+            packages="";;
+    esac
+    pacstrap -K /mnt $packages
+}
+
+set_rootpw() {
+    archroot echo root:"${ROOT_PASSWORD}" | chpasswd
+}
+
+add_user() {
+    archroot useradd -m -G wheel,audio,video $USER_NAME
+    if [[ $USER_PASSWORD != "" ]]; then
+        archroot echo $USER_NAME:$USER_PASSWORD | chpasswd
+    fi
+}
+
+add_sudo() {
+    archroot echo "${USER_NAME} ALL=(ALL:ALL) ALL" > /etc/sudoers.d/"00_$(USER_NAME)"
+}
+
+systemd_services() {
+    nspawn NetworkManager
+    nspawn "${DISPLAY_MANAGER}"
+}
+
+install_bootloader() {
+    archroot grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id="Grub - Arch Linux"
+    archroot grub-mkconfig -o /boot/grub/grub.cfg
+}
+
+generate_locale() {
+    archroot sed -i '' /etc/locale.gen # TODO: FIX
+    locale-gen
+}
+
+set_locale() {
+    archroot echo "LANG=${LOCALE}.UTF-8" > /etc/locale.conf
+}
+
+set_timezone() {
+    archroot ln -sf /usr/share/zoneinfo/${REGION}/${TIMEZONE} /etc/localtime
+    hwclock --systohc # Sync Time / Date to new TimeZone
+}
+
+#
+# Complete "Install" function that actually issues all the functions.
+#  
+install() {
+    partition || catastrophic_failure "Partitioning Drive"
+    format || catastrophic_failure "Formatting Partitions"
+    mount_parts || catastrophic_failure "Mounting Partitions"
+    install_base || catastrophic_failure "Installing Base"
+    generate_fstab || catastrophic_failure "Generating FSTAB"
+    install_desktop || catastrophic_failure "Installing Desktop"
+    set_rootpw || catastrophic_failure "Setting Root Password"
+    add_user || catastrophic_failure "Adding User"
+    if [[ $USER_SUDO == true ]]; then
+        add_sudo || catastrophic_failure "Adding User to Sudoers"
+    fi
+    systemd_services || catastrophic_failure "SystemD Services"
+    install_bootloader || catastrophic_failure "Bootloader Installtion"
+    generate_locale || catastrophic_failure "Generating Locale"
+    set_locale || catastrophic_failure "Setting Locale"
+    set_timezone || catastrophic_failure "Setting Timezone"
+}
