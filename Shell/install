@@ -13,7 +13,6 @@ else                            # Unless it's Sata, or otherwise not nvme.
     SWAP="${DEVICE}2"
     ROOT="${DEVICE}3"
 fi
-
 EDITOR=""                       # nano, vi, vim, nvim, emacs, ed, etc; leave blank for none (Not recommended)
 DESKTOP=""                      # KDE Plasma, Gnome, XFCE4, MATE, Cinnamon, etc; "None" for headless/server
 HOSTNAME=""                     # What your computer is known as on networks
@@ -166,6 +165,52 @@ set_timezone() {
     hwclock --systohc # Sync Time / Date to new TimeZone
 }
 
+install_yay() {
+    export $USER_NAME
+    cat <<EOF > /mnt/tmp/install_yay.sh
+#!/bin/bash
+
+USER_NAME=${USERNAME}
+
+_install_yay() {
+    cd /tmp
+    git clone https://aur.archlinux.org/yay.git
+    chown -R $USER_NAME yay/
+    cd yay/
+    su -c "makepkg" $USER_NAME
+    pacman -U --noconfirm yay-*.pkg.tar.zst
+}
+_install_yay
+EOF
+    chmod a+x /mnt/tmp/install_yay.sh
+    archroot /tmp/install_yay.sh
+}
+
+install_paru() {
+    export $USER_NAME
+    cat <<EOF > /mnt/tmp/install_paru.sh
+#!/bin/bash
+
+USER_NAME=${USERNAME}
+
+install_paru() {
+    cd /tmp
+    git clone https://aur.archlinux.org/paru.git
+    chown -R $USER_NAME paru/
+    cd paru/
+    su -c "makepkg" $USER_NAME
+    pacman -U --noconfirm paru-*.pkg.tar.zst
+}
+install_paru
+EOF
+    chmod +x /mnt/tmp/install_paru.sh
+    arch-chroot /mnt /tmp/install_paru.sh
+}
+
+clean_up() {
+    rm -rf /mnt/tmp/*
+}
+
 #
 # Complete "Install" function that actually issues all the functions.
 #  
@@ -186,4 +231,11 @@ install() {
     generate_locale || catastrophic_failure "Generating Locale"
     set_locale || catastrophic_failure "Setting Locale"
     set_timezone || catastrophic_failure "Setting Timezone"
+    if [[ $AUR_WRAPPER == "Yay" ]]; then
+        install_yay || catastrophic_failure "Installing Yay"
+    elif [[ $AUR_WRAPPER == "Paru" ]]; then
+        install_paru || catastrophic_failure "Install Paru"
+    else
+        :
+    fi
 }
