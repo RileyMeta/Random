@@ -373,6 +373,7 @@ install() {
         "Yay") install_yay || catastrophic_failure "Installing Yay" ;;
         "Paru") install_paru || catastrophic_failure "Installing Paru" ;;
     esac
+    clean_up
 }
 
 #
