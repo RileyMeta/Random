@@ -1,45 +1,59 @@
 #!/bin/bash
 
-#
-# Global Variables used throughout the Script
-#
-DEVICE="/dev/nvme0n1" # Temp, remove after testing, Dialog Script has a function for getting the device
-if [[ $DEVICE == *"nvme"*]]; then   # Required because Linux appends a `p` for each Partition
-    BOOT="${DEVICE}p1"
-    SWAP="${DEVICE}p2"
-    ROOT="${DEVICE}p3"
-else                            # Unless it's Sata, or otherwise not nvme.
-    BOOT="${DEVICE}1"
-    SWAP="${DEVICE}2"
-    ROOT="${DEVICE}3"
+DEVICE=""           # What Device you'll install Arch to, full device path `/dev/sda`
+
+suffix=""
+[[ $DEVICE == *"nvme"* ]] && suffix="p"
+
+BOOT="${DEVICE}${suffix}1"  # Boot Partition
+SWAP="${DEVICE}${suffix}2"  # Swap Partition
+ROOT="${DEVICE}${suffix}3"  # Root Partition
+
+if [[ $HAS_HOME == false ]]; then
+    HOME="${DEVICE}${suffix}4"  # Disabled by default
+else
+    HOME=""                     # Allow the user to provide their own partition
 fi
-EDITOR=""                       # nano, vi, vim, nvim, emacs, ed, etc; leave blank for none (Not recommended)
-DESKTOP=""                      # KDE Plasma, Gnome, XFCE4, MATE, Cinnamon, etc; "None" for headless/server
-HOSTNAME=""                     # What your computer is known as on networks
-ROOT_PASSWORD=""                # The Root account password (Leave empty to disable *hardmode*)
-USER_NAME=""                    # Your primary user account's name
-USER_SUDO=false                 # Should your user account have sudo privileges
-USER_PASSWORD=""                # The password for your user account
-LOCALE=""                       # The Locale / language for your computer
-TIMEZONE=""                     # The timezone of your computer
+
+HIBERNATE=false     # If the user is planning to use hibernation
+HOME_PART=false     # If the user wants to use a separate home partition 
+HAS_HOME=false      # If the users is bringing over their own `/home/` partition
+
+FILE_SYSTEM=""      # EXT4, BTRFS or XFS
+
+DESKTOP=""          # KDE Plasma, Gnome, XFCE4, MATE, Cinnamon or none
+DISPLAY_MANAGER=""  # sddm, gdm, lightdm, lightdm-slick-greeter
+AUR_WRAPPER=""      # if yay is chosen, install go to build it
+GRAPHICS_DRIVER=""  # Nvidia Proprietary, Nvidia Open, vulkan-nouveau, xf86-nouveau, Intel, AMD GPU, mesa
+EDITOR=""           # vi, vim, neovim, nano, emacs, leave blank for none (NOT Recommended).
+
+ROOT_PASSWORD=""    # The Password for the Root User's account
+
+USER_NAME=""        # The User account's name
+USER_PASSWORD=""    # The password for the user's account
+USER_SUDO=true      # Add the user to `/etc/sudoers.d/`
+
+LOCALE=""           # The system language, used for compiling packages
+REGION=""           # What part of the world you're part of
+TIMEZONE=""         # What timezone you're in
 
 #
 # Helper Functions
 #
 archroot() {
-    # User-Friendly way to issue commands from outside the chroot
-    flag=$@
-    arch-chroot /mnt $flag
+    local command
+    command=$* # Capture all flags after function call
+    arch-chroot /mnt "$command"
 }
 
-nspawn() {
-    # User-Friendly way to start services from outside the chroot
-    flag=$@
-    systemd-nspawn -D /mnt -- systemctl enable $flag.service
+nspawn() { # Automate the starting of systemd services
+    local service
+    service=$*
+    systemd-nspawn -D /mnt -- systemctl enable "$service".service
 }
 
-catastrophic_failure() { # In the event of a catastrophic failure, display the error message
-    argument=$@
+catastrophic_failure() {
+    argument=$*
     clear
     echo -e "Catastrophic Failure: ${argument}"
 }
@@ -50,21 +64,59 @@ ping_fail() {
     prompt+="\nThe Arch installation process uses the network to download system packages."
     prompt+="\nIf you're using WiFi, please try 'iwctl station wlan0 connect <Network_SSID>'"
     prompt+="\nyou may need to change 'wlan0' to match your hardware."
-    echo -e $prompt
+    echo -e "$prompt"
 }
 
-
-
 #
-# Actual Installation Steps taking place below here
+# Pre-Install Tasks
 #
-init_test() { # Ensure that the host has an Internet Connection
-    ping -c 1 google.com || ping_fail
-    timedatectl && install # Begin the install
+parallel() {
+    sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 }
 
-partition() {
-  cat <<EOF | fdisk $DEVICE
+multilib() {
+    # Going to hack this because sed is a bitch with \"[multilib]\"
+    cat <<EOF >> /etc/pacman.conf
+
+[multilib]
+Include = /etc/pacman.d/mirrorlist
+EOF
+}
+
+unmount_all() {
+    umount -R /mnt/boot/efi
+    swapoff "$SWAP"
+    umount -R /mnt
+}
+
+#
+# Actual Install Steps
+#
+format() {
+    local total_ram 
+    local swap_size 
+    local root_size
+    clear
+
+    # This should and will thrown an error, this is by design.
+    # The 4th partition should be empty if HOME_PART is false.
+    # Leaving it like this allows me to only make 1 function.
+
+    if [[ $HIBERNATE == true ]]; then
+        total_ram=$(free -g | awk '/^Mem:/{print $2}')
+        # Calculate swap size (1.25 times total RAM), rounding to the nearest whole number
+        swap_size="+$(awk "BEGIN {print int(($total_ram * 1.25) + 0.5)}G")"
+    else
+        swap_size="+4G"
+    fi
+
+    if [[ $HOME_PART == true ]]; then
+        root_size="+32G"
+    else
+        root_size=""  # Leave partition size blank (fdisk will auto-allocate)
+    fi
+
+    fdisk "$DEVICE" <<EOF
 g
 n
 1
@@ -75,12 +127,16 @@ t
 n
 2
 
-+4G
+$swap_size
 t
 2
 swap
 n
 3
+
+$root_size
+n
+4
 
 
 w
@@ -88,96 +144,167 @@ EOF
 }
 
 format() {
-    mkfs.fat -F 32 $BOOT
-    mkswap $SWAP
-    mkfs.btrfs $ROOT
-}
-
-mount_parts() {
-    mount $ROOT /mnt
-    swapon $SWAP
-    mkdir -p /mnt/boot/efi
-    mount $BOOT /mnt/boot/efi
-}
-
-install_base() {
-    pacstrap -K /mnt base base-devel linux linux-firmware linux-headers git go curl wget networkmanager grub efibootmgr $EDITOR
-}
-
-generate_fstab() {
-    genfstab -U /mnt >> /mnt/etc/fstab
-}
-
-install_desktop() {
-    case $DESKTOP in
-        "KDE Plasma") 
-            packages="plasma plasma-meta konsole dolphin sddm";;
-        "Gnome") 
-            packages="gnome gnome-extras gdm";;
-        "XFCE4")
-            packages="xfce4 xfce4-goodies";;
-        "MATE")
-            packages="mate mate-extra";;
-        "Cinnamon")
-            packages="cinnamon";;
-        "None")
-            packages="";;
-    esac
-    pacstrap -K /mnt $packages
-}
-
-set_rootpw() {
-    archroot echo root:"${ROOT_PASSWORD}" | chpasswd
-}
-
-add_user() {
-    archroot useradd -m -G wheel,audio,video $USER_NAME
-    if [[ $USER_PASSWORD != "" ]]; then
-        archroot echo $USER_NAME:$USER_PASSWORD | chpasswd
+    clear
+    mkfs.fat -F 32 "$BOOT"
+    mkswap "$SWAP"
+    if [[ $FILE_SYSTEM == "btrfs" ]]; then
+        mkfs.btrfs -f "$ROOT"
+    elif [[ $FILE_SYSTEM == "ext4" ]]; then
+        yes | mkfs.ext4 "$ROOT"
+    else # Default to the Tried and True XFS if no FS is chosen 
+        mkfs.xfs -f "$ROOT"
     fi
 }
 
+mount_parts() {
+    clear
+    mount -v "$ROOT" /mnt
+    swapon -v "$SWAP"
+    mkdir -pv /mnt/boot/efi
+    mount -v "$BOOT" /mnt/boot/efi
+
+    if [[ $HAS_HOME == true ]]; then
+        mount -v "$HOME_PART" /home/
+    fi
+    sleep 1
+}
+
+install_base() {
+    clear
+    pacstrap -K /mnt base base-devel linux linux-firmware linux-headers \
+                     git curl wget grub efibootmgr networkmanager "$EDITOR"
+    sleep 1
+}
+
+install_desktop() {
+    clear
+    case $DESKTOP in
+        "KDE Plasma") 
+            packages="plasma plasma-meta konsole dolphin"
+            DISPLAY_MANAGER="sddm";;
+        "Gnome") 
+            packages="gnome gnome-extras"
+            DISPLAY_MANAGER="gdm";;
+        "XFCE4")
+            packages="xfce4 xfce4-goodies"
+            DISPLAY_MANAGER="sddm";;
+        "MATE")
+            packages="mate mate-extra"
+            DISPLAY_MANAGER="lightdm";;
+        "Cinnamon")
+            packages="cinnamon"
+            DISPLAY_MANAGER="lightdm-slick-greeter";;
+        "None")
+            packages="";;
+    esac
+
+    if [[ $AUR_WRAPPER == "yay" ]]; then
+        packages+=" go"
+    fi
+
+    pacstrap -K /mnt "$packages" "$DISPLAY_MANAGER"
+    sleep 1
+}
+
+install_drivers() {
+    local drivers
+    clear
+    case $GRAPHICS_DRIVER in
+        "Nvidia Proprietary")
+            drivers="nvidia-dkms egl-wayland lib32-nvidia-utils lib32-opencl-nvidia nvidia-settings opencl-nvidia nvidia-utils";;
+        "Nvidia Open")
+            drivers="nvidia-open-dkms egl-wayland lib32-nvidia-utils lib32-opencl-nvidia nvidia-settings opencl-nvidia nvidia-utils";;
+        "vulkan-nouveau")
+            drivers="vulkan-nouveau lib32-vulkan-nouveau vulkan-icd-loader lib32-vulkan-icd-loader mesa lib32-mesa";;
+        "xf86-nouveau")
+            drivers="xf86-video-nouveau mesa vulkan-icd-loader";;
+        "Intel" | "AMD GPU" | "mesa" )
+            drivers="mesa";;
+    esac
+    pacstrap -K /mnt "$drivers"
+    sleep 1
+}
+
+generate_fstab() {
+    clear
+    genfstab -U /mnt >> /mnt/etc/fstab
+    cat /mnt/etc/fstab
+    sleep 1
+}
+
+set_rootpw() {
+    clear
+    echo "root:${ROOT_PASSWORD}" | archroot chpasswd
+    sleep 1
+}
+
+add_user() {
+    clear
+    archroot useradd -m -G wheel,audio,video "$USER_NAME"
+    if [[ $USER_PASSWORD != "" ]] || [[ -n "$USER_PASSWORD" ]]; then
+        echo "$USER_NAME:$USER_PASSWORD" | archroot chpasswd
+    fi
+    sleep 1
+}
+
 add_sudo() {
-    archroot echo "${USER_NAME} ALL=(ALL:ALL) ALL" > /etc/sudoers.d/"00_$(USER_NAME)"
+    clear # don't know why this works, but it does, all other options have failed.
+    cat <<EOF | arch-chroot /mnt
+echo "${USER_NAME} ALL=(ALL:ALL) ALL" > /etc/sudoers.d/00_${USER_NAME}
+chmod 0440 /etc/sudoers.d/00_${USER_NAME}
+EOF
+    sleep 1
 }
 
 systemd_services() {
+    clear
     nspawn NetworkManager
-    nspawn "${DISPLAY_MANAGER}"
+    if [[ $DISPLAY_MANAGER != "" ]] || [[ -n "$DISPLAY_MANAGER" ]]; then
+        nspawn "${DISPLAY_MANAGER}"
+    fi
+    sleep 1
 }
 
 install_bootloader() {
-    archroot grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id="Grub - Arch Linux"
+    clear # Flags are technically not required, but `--removable` will work on all motherboards
+    archroot grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB --removable
     archroot grub-mkconfig -o /boot/grub/grub.cfg
+    sleep 1
 }
 
 generate_locale() {
-    archroot sed -i '' /etc/locale.gen # TODO: FIX
+    clear
+    archroot sed -i "s/#${LOCALE}/${LOCALE}/" /etc/locale.gen
     locale-gen
+    sleep 1
 }
 
 set_locale() {
+    clear
     archroot echo "LANG=${LOCALE}.UTF-8" > /etc/locale.conf
+    sleep 1
 }
 
 set_timezone() {
-    archroot ln -sf /usr/share/zoneinfo/${REGION}/${TIMEZONE} /etc/localtime
-    hwclock --systohc # Sync Time / Date to new TimeZone
+    clear
+    archroot ln -sf /usr/share/zoneinfo/"${REGION}"/"${TIMEZONE}" /etc/localtime
+    archroot hwclock --systohc # Sync Time / Date to new TimeZone
+    sleep 1
 }
 
 install_yay() {
-    export $USER_NAME
+    export USER_NAME
     cat <<EOF > /mnt/tmp/install_yay.sh
 #!/bin/bash
 
-USER_NAME=${USERNAME}
+USER_NAME=$USER_NAME
 
 _install_yay() {
     cd /tmp
     git clone https://aur.archlinux.org/yay.git
-    chown -R $USER_NAME yay/
+    chown -R \$USER_NAME yay/
     cd yay/
-    su -c "makepkg" $USER_NAME
+    su -c "makepkg" \$USER_NAME
     pacman -U --noconfirm yay-*.pkg.tar.zst
 }
 _install_yay
@@ -187,55 +314,70 @@ EOF
 }
 
 install_paru() {
-    export $USER_NAME
+    export USER_NAME
     cat <<EOF > /mnt/tmp/install_paru.sh
 #!/bin/bash
 
-USER_NAME=${USERNAME}
+USER_NAME=$USER_NAME
 
 install_paru() {
     cd /tmp
     git clone https://aur.archlinux.org/paru.git
-    chown -R $USER_NAME paru/
+    chown -R \$USER_NAME paru/
     cd paru/
-    su -c "makepkg" $USER_NAME
+    su -c "makepkg" \$USER_NAME
     pacman -U --noconfirm paru-*.pkg.tar.zst
 }
 install_paru
 EOF
     chmod +x /mnt/tmp/install_paru.sh
-    arch-chroot /mnt /tmp/install_paru.sh
-}
-
-clean_up() {
-    rm -rf /mnt/tmp/*
+    archroot /tmp/install_paru.sh
 }
 
 #
-# Complete "Install" function that actually issues all the functions.
-#  
+# Install Steps
+#
 install() {
-    partition || catastrophic_failure "Partitioning Drive"
-    format || catastrophic_failure "Formatting Partitions"
-    mount_parts || catastrophic_failure "Mounting Partitions"
-    install_base || catastrophic_failure "Installing Base"
-    generate_fstab || catastrophic_failure "Generating FSTAB"
-    install_desktop || catastrophic_failure "Installing Desktop"
-    set_rootpw || catastrophic_failure "Setting Root Password"
-    add_user || catastrophic_failure "Adding User"
+    local steps=(
+        "partition:Partitioning Drive"
+        "format:Formatting Partitions"
+        "mount_parts:Mounting Partitions"
+        "install_packages:Installing Packages"
+        "generate_fstab:Generating FSTAB"
+        "install_bootloader:Bootloader Installation"
+        "systemd_services:SystemD Services"
+        "set_rootpw:Setting Root Password"
+        "add_user:Adding User"
+        "generate_locale:Generating Locale"
+        "set_locale:Setting Locale"
+        "set_timezone:Setting Timezone"
+    )
+
+    parallel
+
+    if [[ $GRAPHICS_DRIVER == *"nvidia"* ]]; then
+        multilib
+    fi
+
+    # Run main installation steps
+    for step in "${steps[@]}"; do
+        IFS=":" read -r func msg <<< "$step"
+        "$func" || catastrophic_failure "$msg"
+    done
+
     if [[ $USER_SUDO == true ]]; then
         add_sudo || catastrophic_failure "Adding User to Sudoers"
     fi
-    systemd_services || catastrophic_failure "SystemD Services"
-    install_bootloader || catastrophic_failure "Bootloader Installtion"
-    generate_locale || catastrophic_failure "Generating Locale"
-    set_locale || catastrophic_failure "Setting Locale"
-    set_timezone || catastrophic_failure "Setting Timezone"
-    if [[ $AUR_WRAPPER == "Yay" ]]; then
-        install_yay || catastrophic_failure "Installing Yay"
-    elif [[ $AUR_WRAPPER == "Paru" ]]; then
-        install_paru || catastrophic_failure "Install Paru"
-    else
-        :
-    fi
+
+    case $AUR_WRAPPER in
+        "Yay") install_yay || catastrophic_failure "Installing Yay" ;;
+        "Paru") install_paru || catastrophic_failure "Installing Paru" ;;
+    esac
+}
+
+#
+# Post Install Tasks:
+#
+clean_up() {
+    rm -rf /mnt/tmp/*
 }
