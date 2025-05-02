@@ -49,14 +49,14 @@ int main(int argc, char* argv[]) {
 double ctof(char *temp) {
     double c = atof(temp);
     double return_temp = (c * 9.0 / 5.0) + 32;
-    printf("%sC is %.2fF\n", temp, return_temp);
+    printf("%sC is %.1fF\n", temp, return_temp);
     return return_temp;
 }
 
 double ftoc(char *temp) {
     double f = atof(temp);
     double return_temp = (f - 32) * 5.0 / 9.0;
-    printf("%sF is %.2fC\n", temp, return_temp);
+    printf("%sF is %.1fC\n", temp, return_temp);
     return return_temp;
 }
 
