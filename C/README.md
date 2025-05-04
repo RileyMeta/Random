@@ -4,3 +4,4 @@ Most that I had fun with :3
 - [Temperature Converter](https://github.com/RileyMeta/Random/blob/master/C/tempconverter.c)
 - [Calculator](https://github.com/RileyMeta/Random/blob/master/C/calculator.c)
 - [Distance Converter](https://github.com/RileyMeta/Random/blob/master/C/dc.c)
+- [Whoami](https://github.com/RileyMeta/Random/blob/master/C/whoami.c)
