@@ -5,3 +5,4 @@ Most that I had fun with :3
 - [Calculator](https://github.com/RileyMeta/Random/blob/master/C/calculator.c)
 - [Distance Converter](https://github.com/RileyMeta/Random/blob/master/C/dc.c)
 - [Whoami](https://github.com/RileyMeta/Random/blob/master/C/whoami.c)
+- [Linear Search](https://github.com/RileyMeta/Random/blob/master/C/linearsearch.c)
