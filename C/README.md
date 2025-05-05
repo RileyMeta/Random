@@ -3,7 +3,7 @@ Most that I had fun with :3
 - [FizzBuzz](https://github.com/RileyMeta/Random/blob/master/C/fizzbuzz.c)
 Generic Fizz/Buzz/FizzBuzz generator for X amount of cycles
 - [Temperature Converter](https://github.com/RileyMeta/Random/blob/master/C/tempconverter.c)
-Convert Celcius to Fahrenheit
+Convert Celcius to Fahrenheit and Vice versa
 - [Calculator](https://github.com/RileyMeta/Random/blob/master/C/calculator.c)
 A simplistic calculator that will add/subtract/multiply/divide 2 user inputs
 - [Distance Converter](https://github.com/RileyMeta/Random/blob/master/C/dc.c)
