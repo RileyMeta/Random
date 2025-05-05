@@ -7,3 +7,4 @@ Most that I had fun with :3
 - [Whoami](https://github.com/RileyMeta/Random/blob/master/C/whoami.c)
 - [Linear Search](https://github.com/RileyMeta/Random/blob/master/C/linearsearch.c)
 - [Grade Averager](https://github.com/RileyMeta/Random/blob/master/C/grades.c)
+- [Selection Sort](https://github.com/RileyMeta/Random/blob/master/C/selection_sort.c)
