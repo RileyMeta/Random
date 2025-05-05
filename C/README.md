@@ -16,3 +16,5 @@ A generic linear search
 Automatically add and average grades
 - [Selection Sort](https://github.com/RileyMeta/Random/blob/master/C/selection_sort.c)
 A simple but generic Selection sort
+- [Weight Converter](https://github.com/RileyMeta/Random/blob/master/C/weight.c)
+A CLI tool to convert weight measurements
