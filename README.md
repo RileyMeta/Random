@@ -5,5 +5,5 @@ Most of these are fonts or images hosted for third party apps as a test to see i
 
 ## LFS Version Check
 ```sh
-curl https://raw.githubusercontent.com/RileyMeta/Random/master/Shell/version-check.sh | sh
+bash <(curl -fsSL https://raw.githubusercontent.com/RileyMeta/Random/master/Shell/version-check.sh)
 ```
