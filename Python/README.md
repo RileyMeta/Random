@@ -5,3 +5,4 @@ These are just some little projects that I had fun making
 - [Nvidia Update Assistant](https://github.com/RileyMeta/Random/blob/master/Python/nvidia-update.py)
 - [ASCHII](https://github.com/RileyMeta/Random/blob/master/Python/ashcii.py)
 - [TODO List](https://github.com/RileyMeta/Random/blob/master/Python/ToDo_List.py)
+- [Counter](https://github.com/RileyMeta/Random/blob/master/Python/counter.py) - Like for OBS Studio, increment or decrement a counter with the click of a button
