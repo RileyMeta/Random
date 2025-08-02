@@ -15,6 +15,7 @@ def get_counter(file: str):
         return counter
 
 def write_to_file(counter: int):
+    """ Overwrite the file with the current counter """
     try:
         with open(FILE, 'w') as f:
             f.write(str(counter))
