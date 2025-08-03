@@ -7,14 +7,14 @@ def get_counter(file: str):
     """ Parse FILE for current counter int """
     try:
         with open(file, 'r') as f:
-            counter = f.readline().strip()
-            return int(counter)
+            return int(f.readline().strip())
     except (ValueError, FileNotFoundError):
-        counter = 1
+        counter = 0
+        with open(file, 'w') as f:
+            f.write(str(counter))
         return counter
 
 def write_to_file(counter: int):
-    """ Overwrite the file with the current counter """
     try:
         with open(FILE, 'w') as f:
             f.write(str(counter))
