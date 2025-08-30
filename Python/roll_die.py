@@ -20,14 +20,15 @@ def roll(sides: int, advantage: int = None,
     """
     roll_amount = randint(minimum, sides)
 
+    if percentile:
+        if roll_amount > 10:
+            roll_amount -= 10
+        roll_amount *= 10
+
     if not advantage == None:
         adv_roll = randint(minimum, sides)
 
         if percentile:
-            if roll_amount > 10:
-                roll_amount -= 10
-            roll_amount *= 10
-
             if adv_roll > 10:
                 adv_roll -= 10
             adv_roll *= 10
@@ -43,14 +44,8 @@ def roll(sides: int, advantage: int = None,
             else:
                 return (roll_amount, adv_roll)
 
-    if percentile:
-        if roll_amount > 10:
-            roll_amount -= 10
-        roll_amount *= 10
-
     return (roll_amount, None)
 
-# Example Usage:
 if __name__ == "__main__":
     print("Roll a D20: ", roll(20))
     print("Advantage: ", roll(20, 1))
