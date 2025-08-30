@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import argparse
 
@@ -15,6 +17,7 @@ def get_counter(file: str):
         return counter
 
 def write_to_file(counter: int):
+    """ Write counter to file """
     try:
         with open(FILE, 'w') as f:
             f.write(str(counter))
@@ -29,7 +32,7 @@ def decrement_counter(counter: int, step: int = 1):
     """ decrement the COUNTER by STEP or 1 if none """
     write_to_file(counter - step)
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="A simple increment / decrement program.")
     parser.add_argument("-i", "--increment", action="store_true", help="Increase the counter by a specific amount.")
     parser.add_argument("-d", "--decrement", action="store_true", help="Decrease the counter by a specific amount.")
@@ -44,4 +47,7 @@ if __name__ == "__main__":
     elif args.decrement:
         decrement_counter(counter, args.custom)
     else:
-        increment_counter(counter)
+        increment_counter(counter, args.custom)
+
+if __name__ == "__main__":
+    main()
